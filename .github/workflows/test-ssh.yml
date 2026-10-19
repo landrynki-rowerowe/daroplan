@@ -11,7 +11,7 @@ jobs:
   test-connection:
     runs-on: ubuntu-latest
     steps:
-      - name: Sprawdz polaczenie SSH
+      - name: Sprawdz katalog DaRoPlanu
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -21,8 +21,12 @@ jobs:
           timeout: 30s
           command_timeout: 30s
           script: |
-            echo "SSH CONNECTED"
-            echo "Katalog startowy:"
-            pwd
-            echo "Katalogi:"
-            ls -la
+            echo "Katalog domeny:"
+            ls -la rowerowy.otwartyplan.org
+
+            echo "Katalog mapy:"
+            ls -la rowerowy.otwartyplan.org/mapa
+
+            echo "Pliki HTML:"
+            ls -l rowerowy.otwartyplan.org/mapa/index.html
+
