@@ -1,5 +1,7 @@
-DaRoPlan 2.0 v0.5.1 — naprawa pakowania i przywracania warstw.
-Wgraj WSZYSTKIE pliki i foldery do /mapa/ nadpisując poprzednie.
-W przeglądarce użyj Cmd+Shift+R.
-Poprawki: odroczona inicjalizacja do pobrania metadanych, odtwarzanie wszystkich warstw po każdej zmianie stylu, brak zbędnego resetu przy ponownym wyborze tego samego podkładu.
-Weryfikacja: sprawdź DASIE, Tempo 30 i trasy SIM od razu po starcie oraz po zmianach Light → Satelita → Obecny.
+DaRoPlan 2.0 v0.5.2 — poprawka awaryjna
+
+NAPRAWIONE: przywracanie warstw na pierwszym uruchomieniu i po zmianie podkładu (usunięto błędne blokowanie przez map.isStyleLoaded()). Granica ma oryginalny offset czerwonej linii z Mapbox Studio.
+
+Instalacja: nadpisz WSZYSTKIE pliki w /mapa/, zwłaszcza js/app.js oraz index.html. Sprawdź w konsoli tekst: [DaRoPlan] Wersja 0.5.2.
+
+Ostrzeżenia dotyczące light/deprecated, reflen i favicon mogą nadal występować — pochodzą z bazowego stylu albo brakującej ikony, nie z kodu obsługującego warstwy.
