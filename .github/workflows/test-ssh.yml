@@ -1,0 +1,28 @@
+
+name: Test SSH - dhosting
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-connection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sprawdz polaczenie SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          timeout: 30s
+          command_timeout: 30s
+          script: |
+            echo "SSH CONNECTED"
+            echo "Katalog startowy:"
+            pwd
+            echo "Katalogi:"
+            ls -la
