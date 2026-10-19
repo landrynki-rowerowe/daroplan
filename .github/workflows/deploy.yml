@@ -1,0 +1,65 @@
+
+name: Publikuj DaRoPlan
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daroplan-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pobierz kod z GitHub
+        uses: actions/checkout@v4
+
+      - name: Sprawdz pliki aplikacji
+        run: |
+          test -f index.html
+          test -d css
+          test -d js
+          test -d data
+          echo "Pliki aplikacji sa gotowe"
+
+      - name: Sprawdz katalog docelowy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd rowerowy.otwartyplan.org/public_html/mapa
+            test -f index.html
+            echo "Katalog docelowy istnieje"
+
+      - name: Przeslij pliki przez SCP
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "index.html,css,js,data"
+          target: "rowerowy.otwartyplan.org/public_html/mapa/"
+          overwrite: true
+          rm: false
+
+      - name: Sprawdz publikacje
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd rowerowy.otwartyplan.org/public_html/mapa
+            test -s index.html
+            test -f js/app.js
+            echo "DEPLOY OK"
