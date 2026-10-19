@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const cfg=window.DAROPLAN_CONFIG;
-console.info('[DaRoPlan] Wersja 0.6-dev — Tempo 20/30');
+console.info('[DaRoPlan] Wersja 0.6.1-dev — stopniowanie grubości wg zoomu');
 const $=id=>document.getElementById(id);
 const ui={menu:$('layersMenu'),panel:$('infoPanel'),content:$('infoContent'),results:$('searchResults'),input:$('searchInput')};
 // Kanoniczny adres bez index.html — zachowujemy hash Mapboxa i pozostałe parametry.
@@ -37,8 +37,8 @@ const layerGroups=[
  {id:'sim',title:'Trasy SIM — koncepcja'},
  {id:'residences',title:'Zameldowania'}
 ];
-function line(id,source,sourceLayer,color,filter,dash,width=3){const layer={id:'dp-'+id,type:'line',source,paint:{'line-color':color,'line-width':['interpolate',['linear'],['zoom'],11,width*.6,15,width,18,width*1.45],'line-opacity':.93}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;if(dash)layer.paint['line-dasharray']=dash;return layer;}
-function circle(id,source,sourceLayer,color,filter){const layer={id:'dp-'+id,type:'circle',source,paint:{'circle-radius':['interpolate',['linear'],['zoom'],11,4,16,8],'circle-color':color,'circle-stroke-width':1.6,'circle-stroke-color':'#fff','circle-opacity':.9}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;return layer;}
+function line(id,source,sourceLayer,color,filter,dash,width=3){const layer={id:'dp-'+id,type:'line',source,paint:{'line-color':color,'line-width':['interpolate',['linear'],['zoom'],9,Math.max(.65,width*.30),11,Math.max(.85,width*.42),13.5,width*.75,16,width*1.30],'line-opacity':.93}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;if(dash)layer.paint['line-dasharray']=dash;return layer;}
+function circle(id,source,sourceLayer,color,filter){const layer={id:'dp-'+id,type:'circle',source,paint:{'circle-radius':['interpolate',['linear'],['zoom'],9,2,11,3,13.5,4.5,16,8],'circle-color':color,'circle-stroke-width':['interpolate',['linear'],['zoom'],11,.8,13.5,1.3,16,1.8],'circle-stroke-color':'#fff','circle-opacity':.9}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;return layer;}
 function add(id,layer,group){try{if(!map.getLayer(layer.id))map.addLayer(layer);layerIndex.set(layer.id,group);map.setLayoutProperty(layer.id,'visibility',visibleGroup(group)?'visible':'none');}catch(e){console.warn('[DaRoPlan] Nie udało się dodać',id,e.message)}}
 const layerIndex=new Map();
 const fixedGroups=new Set(['borders']);
@@ -53,7 +53,7 @@ if(sourceLayers.tempoLines){
    id:'dp-'+id,type:'line',source:src,'source-layer':sl,
    filter:['==',['to-string',['get','maxspeed']],String(speed)],
    paint:{'line-color':color,'line-opacity':0.48,
-     'line-width':['interpolate',['linear'],['zoom'],9,5,12,10,16,16]}
+     'line-width':['interpolate',['linear'],['zoom'],9,2.5,11,4,13.5,8,16,14]}
  });
  add('tempoLines',marker('tempoLines',30,'#f5d51b'),'tempoLines');
  add('tempo20',marker('tempo20',20,'#ffb767'),'tempo20');
@@ -62,7 +62,7 @@ const core='DaRoPlan - infrastruktura rowerowa';
 const category=(...cats)=>['in',['get','category'],['literal',cats]];
 const colors=[['ddr','#2632ef'],['cpr','#2632ef',[2.5,1.5]],['c16t22','#2632ef',[1,2]],['pord','#2632ef',[1,2]],['pas','#159924'],['kontraruch','#159924',[2.5,1.5]],['kontrapas','#159924',[2.5,1.5]]];
 for(const [c,color,dash] of colors){const g=({c16t22:'allowed',pord:'allowed',kontraruch:'contra',kontrapas:'contra'})[c]||c;add(c,line('infra-'+c,'dp-infra',core,color,category(c),dash,2.5),'infra:'+g);}
-add('oneway',{id:'dp-oneway',type:'symbol',source:'dp-infra','source-layer':core,filter:['all',['==',['get','category'],'ddr'],['==',['get','additional_info'],'one-way']],layout:{'symbol-placement':'line','symbol-spacing':60,'text-field':'▶','text-size':13,'text-rotation-alignment':'map','text-keep-upright':false,'text-allow-overlap':true},paint:{'text-color':'#253bf0','text-halo-color':'#fff','text-halo-width':1}},'infra:ddr');
+add('oneway',{id:'dp-oneway',type:'symbol',minzoom:13.5,source:'dp-infra','source-layer':core,filter:['all',['==',['get','category'],'ddr'],['==',['get','additional_info'],'one-way']],layout:{'symbol-placement':'line','symbol-spacing':70,'text-field':'▶','text-size':['interpolate',['linear'],['zoom'],13.5,10,16,14],'text-rotation-alignment':'map','text-keep-upright':false,'text-allow-overlap':true},paint:{'text-color':'#253bf0','text-halo-color':'#fff','text-halo-width':['interpolate',['linear'],['zoom'],13.5,.6,16,1.2]}},'infra:ddr');
 add('suggestions',line('suggestions','dp-infra',core,'#e32626',category('suggestion'),[1,2],2.4),'suggestions');
 add('construction',line('construction','dp-infra',core,'#ee9a12',category('ddr-p','cpr-p','kontraruch-p','kontrapas-p'),[2.5,1.5],3.2),'construction');
 
@@ -160,7 +160,7 @@ function applySatelliteContrast(){
    if(!layer||layer.type!=='line')continue;
    const haloId=id+'-halo';
    if(!map.getLayer(haloId)){
-     const spec={id:haloId,type:'line',source:layer.source,paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],11,5,15,7,16,8],'line-opacity':.96}};
+     const spec={id:haloId,type:'line',source:layer.source,paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],9,2,11,2.7,13.5,4.6,16,7.8],'line-opacity':.96}};
      if(layer['source-layer'])spec['source-layer']=layer['source-layer'];
      if(layer.filter)spec.filter=layer.filter;
      try{map.addLayer(spec,id);layerIndex.set(haloId,group)}catch(e){console.warn('Nie można dodać obrysu',haloId,e)}
