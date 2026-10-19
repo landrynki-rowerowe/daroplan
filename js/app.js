@@ -1,5 +1,6 @@
 (()=>{'use strict';
 const cfg=window.DAROPLAN_CONFIG;
+console.info('[DaRoPlan] Wersja 0.6-dev — Tempo 20/30');
 const $=id=>document.getElementById(id);
 const ui={menu:$('layersMenu'),panel:$('infoPanel'),content:$('infoContent'),results:$('searchResults'),input:$('searchInput')};
 // Kanoniczny adres bez index.html — zachowujemy hash Mapboxa i pozostałe parametry.
@@ -13,7 +14,7 @@ const infraCategories=[
  {id:'pas',name:'Pas rowerowy',color:'#159924'},
  {id:'contra',name:'Kontrapas / kontraruch',color:'#159924',dash:'dashed'}
 ];
-const selection=new Set(['infra','suggestions','construction','tempoLines','borders','ddr','cpr','allowed','pas','contra']);
+const selection=new Set(['infra','suggestions','construction','borders','ddr','cpr','allowed','pas','contra']);
 let infraExpanded=true,geoRequest=0;
 const sources={
  infra:{type:'vector',url:'mapbox://ibikekrk.cmmypfiet2x4g1opbk9r00o65-059oo'},
@@ -29,7 +30,7 @@ const sources={
 };
 const layerGroups=[
  {id:'infra',title:'Infrastruktura rowerowa'}, {id:'suggestions',title:'Sugerowane trasy w ruchu ogólnym'},
- {id:'construction',title:'W budowie'}, {id:'tempoLines',title:'Tempo 30 — ulice'},{id:'counters',title:'Liczniki rowerowe'},
+ {id:'construction',title:'W budowie'}, {id:'tempoLines',title:'Tempo 30 — ulice'}, {id:'tempo20',title:'Tempo 20 — strefy zamieszkania'}, {id:'counters',title:'Liczniki rowerowe'},
  {id:'stojaki',title:'Stojaki rowerowe'}, {id:'shelters',title:'Wiaty rowerowe'},
  {id:'supports',title:'Podpórki'}, {id:'repairs',title:'Stacje naprawy'},
  {id:'dasie',title:'DASIE — archiwum'}, {id:'study',title:'Studium tras rowerowych'},
@@ -44,6 +45,19 @@ const fixedGroups=new Set(['borders']);
 function visibleGroup(group){return fixedGroups.has(group)||selection.has(group)}
 function styleLayer(id,newId,src,group){const template=styleLayers.find(l=>l.id===id);if(!template)return;const layer=JSON.parse(JSON.stringify(template));layer.id='dp-'+newId;layer.source=src;if(sourceLayers[group])layer['source-layer']=sourceLayers[group];layer.layout=layer.layout||{};layer.layout.visibility='visible';add(id,layer,group);}
 function createLayers(){layerIndex.clear();for(const [id,obj] of Object.entries(sources)){if(!map.getSource('dp-'+id))try{map.addSource('dp-'+id,obj)}catch(e){console.warn('Nie można dodać źródła',id,e)}}
+// Tempo 20/30 rysujemy pierwsze, pod infrastrukturą rowerową.
+// Atrybut maxspeed może mieć w danych postać liczby albo tekstu.
+if(sourceLayers.tempoLines){
+ const src='dp-tempoLines', sl=sourceLayers.tempoLines;
+ const marker=(id,speed,color)=>({
+   id:'dp-'+id,type:'line',source:src,'source-layer':sl,
+   filter:['==',['to-string',['get','maxspeed']],String(speed)],
+   paint:{'line-color':color,'line-opacity':0.48,
+     'line-width':['interpolate',['linear'],['zoom'],9,5,12,10,16,16]}
+ });
+ add('tempoLines',marker('tempoLines',30,'#f5d51b'),'tempoLines');
+ add('tempo20',marker('tempo20',20,'#ffb767'),'tempo20');
+}
 const core='DaRoPlan - infrastruktura rowerowa';
 const category=(...cats)=>['in',['get','category'],['literal',cats]];
 const colors=[['ddr','#2632ef'],['cpr','#2632ef',[2.5,1.5]],['c16t22','#2632ef',[1,2]],['pord','#2632ef',[1,2]],['pas','#159924'],['kontraruch','#159924',[2.5,1.5]],['kontrapas','#159924',[2.5,1.5]]];
@@ -51,7 +65,7 @@ for(const [c,color,dash] of colors){const g=({c16t22:'allowed',pord:'allowed',ko
 add('oneway',{id:'dp-oneway',type:'symbol',source:'dp-infra','source-layer':core,filter:['all',['==',['get','category'],'ddr'],['==',['get','additional_info'],'one-way']],layout:{'symbol-placement':'line','symbol-spacing':60,'text-field':'▶','text-size':13,'text-rotation-alignment':'map','text-keep-upright':false,'text-allow-overlap':true},paint:{'text-color':'#253bf0','text-halo-color':'#fff','text-halo-width':1}},'infra:ddr');
 add('suggestions',line('suggestions','dp-infra',core,'#e32626',category('suggestion'),[1,2],2.4),'suggestions');
 add('construction',line('construction','dp-infra',core,'#ee9a12',category('ddr-p','cpr-p','kontraruch-p','kontrapas-p'),[2.5,1.5],3.2),'construction');
-if(sourceLayers.tempoLines)add('tempoLines',line('tempoLines','dp-tempoLines',sourceLayers.tempoLines,'#e8b500',null,[2,1],3.3),'tempoLines');
+
 add('counters',circle('counters','dp-counters','liczniki_petle_pomiaru_ruchu_row','#f47a20'),'counters');
 add('stojaki',circle('stojaki','dp-stojaki',null,'#0071ac'),'stojaki');
 add('shelters',circle('shelters','dp-ztp',null,'#c026d3',['==',['get','typ'],'wiata']),'shelters');
@@ -66,17 +80,18 @@ if(sourceLayers.sim){
   const routeColor=['match',['to-number',['coalesce',['get','nr_liczba'],['get','nr'],0]],...color.flatMap((c,i)=>[i+1,c]),'#8d569b'];
   add('sim',line('sim','dp-sim',sourceLayers.sim,routeColor,null,null,5),'sim');
 }
-// Granice: szara kreska i szeroki czerwony półprzezroczysty pas pod nią.
+// Oryginalna symbolika granic: czerwony pas po zewnętrznej stronie Krakowa oraz szara linia przerywana.
 const borderSource=sourceLayers.borders||'Krakow_granice_miasta';
-add('border-red',line('border-red','dp-borders',borderSource,'#e53935',null,null,13),'borders');
-map.setPaintProperty('dp-border-red','line-opacity',.23);
+const redTemplate=styleLayers.find(l=>l.id==='krakow-granice-miasta copy');
+if(redTemplate)styleLayer('krakow-granice-miasta copy','border-red','dp-borders','borders');
+else {add('border-red',line('border-red','dp-borders',borderSource,'#ff5252',null,null,13),'borders');map.setPaintProperty('dp-border-red','line-opacity',.4);map.setPaintProperty('dp-border-red','line-offset',-6.5)}
 styleLayer('krakow-granice-miasta','borders','dp-borders','borders');
 styleLayer('zamaledowania','residences','dp-residences','residences');
 }
 // Jedna droga odbudowy warstw po KAŻDEJ zmianie podkładu.
 // Nie uruchamiamy jej zanim metadane tilesetów i kopia stylu będą dostępne.
 function restoreThematicLayers(){
- if(!sourcesReady||!map||!map.isStyleLoaded())return;
+ if(!sourcesReady||!map||!map.getStyle())return;
  try{
    hideStyleThemes();
    createLayers();
@@ -128,7 +143,7 @@ async function detectSourceLayers(){
    const names=(meta.vector_layers||[]).map(x=>x.id);
    if(!names.length)throw Error('brak vector_layers');
    sourceLayers[key]=names[0];if(names.length>1)console.info('[DaRoPlan] source-layers '+key,names);
-  }catch(err){console.warn('[DaRoPlan] Metadane tilesetu '+key,err);if(key==='borders')sourceLayers[key]='Krakow_granice_miasta';}
+  }catch(err){console.warn('[DaRoPlan] Metadane tilesetu '+key,err);if(key==='borders')sourceLayers[key]='Krakow_granice_miasta';if(key==='tempoLines')sourceLayers[key]='strefa-tempo-30';}
  }));
  return results;
 }
@@ -140,7 +155,7 @@ for(const id of list){if(map.getLayer(id))map.setLayoutProperty(id,'visibility',
 function applySatelliteContrast(){
  // Osobne białe podkłady pod liniami zapewniają kontrast na ortofotomapie.
  for(const [id,group] of [...layerIndex]){
-   if(id.endsWith('-halo')||id.includes('border')||id.startsWith('dp-selected'))continue;
+   if(id.endsWith('-halo')||id.includes('border')||id.startsWith('dp-selected')||group==='tempoLines'||group==='tempo20')continue;
    const layer=map.getLayer(id);
    if(!layer||layer.type!=='line')continue;
    const haloId=id+'-halo';
@@ -184,14 +199,14 @@ function renderControls(){
  infraHeader.append(row('infra','Infrastruktura rowerowa'));
  const expand=document.createElement('button');expand.type='button';expand.className='expand-infra';expand.textContent=infraExpanded?'▾':'▸';expand.title=infraExpanded?'Zwiń kategorie':'Rozwiń kategorie';expand.setAttribute('aria-expanded',String(infraExpanded));expand.onclick=()=>{infraExpanded=!infraExpanded;renderControls()};infraHeader.append(expand);box.append(infraHeader);
  if(infraExpanded){const wrap=document.createElement('div');wrap.className='infra-children';for(const cat of infraCategories)wrap.append(row(cat.id,cat.name,swatch(cat.color,cat.dash)));box.append(wrap)}
- const legend={suggestions:['#e32626','dotted'],construction:['#ee9a12','dashed'],tempoLines:['#e8b500','dashed'],counters:['#f47a20',null],dasie:['#dc2424',null]};
+ const legend={suggestions:['#e32626','dotted'],construction:['#ee9a12','dashed'],tempoLines:['#f5d51b',null],tempo20:['#ffb767',null],counters:['#f47a20',null],dasie:['#dc2424',null]};
  for(const layer of layerGroups){if(layer.id==='infra')continue;const detail=legend[layer.id];box.append(row(layer.id,layer.title,detail?swatch(...detail):null))}
  const fixed=document.createElement('div');fixed.className='fixed-layer-note';fixed.append(swatch('#777','dashed'),textNode('span','Granice Krakowa — zawsze widoczne'));box.append(fixed);
 }
 // Wyszukiwanie lokalizacji Mapbox Geocoding. Własny indeks treści dodamy w następnym etapie.
 async function search(query){if(!query.trim())return;ui.results.classList.remove('hidden');ui.results.replaceChildren(textNode('p','Wyszukiwanie miejsc…'));const controller=new AbortController();if(search.previous)search.previous.abort();search.previous=controller;try{const url='https://api.mapbox.com/geocoding/v5/mapbox.places/'+encodeURIComponent(query)+'.json?access_token='+encodeURIComponent(cfg.token)+'&country=pl&language=pl&limit=6&proximity=19.94,50.06';const response=await fetch(url,{signal:controller.signal});if(!response.ok)throw Error('HTTP '+response.status);const data=await response.json();ui.results.replaceChildren();if(!data.features?.length){ui.results.append(textNode('p','Nie znaleziono lokalizacji.'));return}for(const f of data.features){const btn=document.createElement('button');btn.append(textNode('strong',f.text||'Lokalizacja'),textNode('small',f.place_name||''));btn.addEventListener('click',()=>{ui.results.classList.add('hidden');ui.input.value=f.place_name||f.text;map.flyTo({center:f.center,zoom:Math.max(map.getZoom(),15),essential:true});const nearby=textNode('p','Wybierz obiekt na mapie, aby zobaczyć jego dane. Automatyczne wyszukiwanie powiązanych treści w promieniu miejsca jest kolejnym etapem.');showPanel(f.text||'Lokalizacja','Wynik wyszukiwania',{},nearby)});ui.results.append(btn)}}catch(e){if(e.name!=='AbortError'){ui.results.replaceChildren(textNode('p','Nie udało się wyszukać. Sprawdź dostęp geokodowania dla tokenu Mapbox.'))}}}
 function hideLocation(){geoRequest++;if(locationMarker){locationMarker.remove();locationMarker=null;}$('locate').classList.remove('is-active');$('locate').setAttribute('aria-pressed','false');$('locate').title='Pokaż moją lokalizację'}
-function init(){if(!window.mapboxgl){$('status').textContent='Nie załadowano Mapbox GL JS';toast('Nie udało się załadować Mapbox GL JS');return}mapboxgl.accessToken=cfg.token;map=new mapboxgl.Map({container:'map',style:cfg.basemaps.original,center:cfg.home,zoom:cfg.zoom,minZoom:9,maxZoom:16,hash:true,attributionControl:true});map.addControl(new mapboxgl.NavigationControl({showCompass:true}),'bottom-right');map.addControl(new mapboxgl.ScaleControl({unit:'metric',maxWidth:90}),'bottom-left');map.on('style.load',()=>{styleRevision++;restoreThematicLayers()});map.on('error',e=>console.warn('[DaRoPlan Mapbox]',e.error||e));attachClicks();
+function init(){if(!window.mapboxgl){$('status').textContent='Nie załadowano Mapbox GL JS';toast('Nie udało się załadować Mapbox GL JS');return}mapboxgl.accessToken=cfg.token;map=new mapboxgl.Map({container:'map',style:cfg.basemaps.original,center:cfg.home,zoom:cfg.zoom,minZoom:9,maxZoom:16,hash:true,attributionControl:true});map.addControl(new mapboxgl.NavigationControl({showCompass:true}),'bottom-right');map.addControl(new mapboxgl.ScaleControl({unit:'metric',maxWidth:90}),'bottom-left');map.on('style.load',()=>{styleRevision++;restoreThematicLayers()});map.on('load',restoreThematicLayers);map.on('error',e=>console.warn('[DaRoPlan Mapbox]',e.error||e));attachClicks();
 Promise.all([detectSourceLayers(),fetch('data/studio-layers.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Brak pliku stylu');return r.json()})]).then(([,data])=>{styleLayers=data;sourcesReady=true;restoreThematicLayers()}).catch(e=>{console.error('[DaRoPlan] Konfiguracja:',e);toast('Nie wczytano konfiguracji Studium / SIM: '+e.message)});
 $('layersBtn').addEventListener('click',()=>{renderControls();openPanel('layers')});$('infoClose').onclick=closePanel;$('panelExpand').onclick=()=>{const expanded=ui.panel.classList.toggle('expanded');$('panelExpand').setAttribute('aria-expanded',String(expanded));$('panelExpand').textContent=expanded?'⌄':'⌃'};document.querySelectorAll('[data-base]').forEach(el=>el.addEventListener('click',()=>setBase(el.dataset.base)));document.querySelectorAll('[data-mode]').forEach(el=>el.addEventListener('click',()=>{configureModes(el.dataset.mode);renderControls()}));$('searchForm').addEventListener('submit',e=>{e.preventDefault();search(ui.input.value)});$('brand').onclick=()=>showPanel('DaRoPlan 2.0','Fundacja Otwarty Plan',{},textNode('p','Mapa i wiedza o ruchu rowerowym w Krakowie. To testowa wersja nowego interfejsu.'));$('locate').onclick=()=>{if(locationMarker){hideLocation();return}if(!navigator.geolocation)return toast('Geolokalizacja niedostępna');const requestId=++geoRequest;navigator.geolocation.getCurrentPosition(p=>{if(requestId!==geoRequest)return;const coords=[p.coords.longitude,p.coords.latitude];if(!locationMarker){const dot=document.createElement('div');dot.className='user-location-dot';dot.title='Twoja lokalizacja';locationMarker=new mapboxgl.Marker({element:dot,anchor:'center'}).setLngLat(coords).addTo(map)}else{locationMarker.setLngLat(coords)}$('locate').classList.add('is-active');$('locate').setAttribute('aria-pressed','true');$('locate').title='Ukryj moją lokalizację';map.flyTo({center:coords,zoom:Math.max(map.getZoom(),15),essential:true});},()=>toast('Nie udało się uzyskać lokalizacji. Sprawdź uprawnienia i HTTPS.'),{enableHighAccuracy:true,timeout:12000,maximumAge:30000})};$('share').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);toast('Skopiowano link do mapy')}catch(e){toast('Adres mapy: '+location.href)}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){ui.results.classList.add('hidden');hideLocation();closePanel()}});renderControls();}
 init();
