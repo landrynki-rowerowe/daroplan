@@ -1,0 +1,84 @@
+
+name: Publikuj DaRoPlan DEV
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daroplan-dev-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-dev:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pobierz kod z galezi dev
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          persist-credentials: false
+
+      - name: Sprawdz pliki
+        run: |
+          set -eu
+          test -s index.html
+          test -s js/app.js
+          test -d css
+          test -d data
+
+      - name: Sprawdz fingerprint SSH
+        env:
+          FP: ${{ secrets.SSH_FINGERPRINT }}
+        run: |
+          test -n "$FP" || {
+            echo "Brak SSH_FINGERPRINT"
+            exit 1
+          }
+
+      - name: Sprawdz katalog DEV na serwerze
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          script: |
+            set -eu
+            cd "$HOME/rowerowy.otwartyplan.org/public_html"
+            test -d mapa-dev
+            test ! -L mapa-dev
+            echo "Katalog DEV istnieje"
+
+      - name: Publikuj pliki DEV
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          source: "index.html,css,js,data"
+          target: "rowerowy.otwartyplan.org/public_html/mapa-dev/"
+          overwrite: true
+          rm: false
+
+      - name: Sprawdz wdrozenie
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          script: |
+            set -eu
+            cd "$HOME/rowerowy.otwartyplan.org/public_html/mapa-dev"
+            test -s index.html
+            test -s js/app.js
+            echo "DAROPLAN DEV DEPLOY OK"
