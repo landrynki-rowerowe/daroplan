@@ -20,13 +20,18 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           timeout: 30s
           command_timeout: 30s
+          
           script: |
-            echo "Katalog domeny:"
-            ls -la rowerowy.otwartyplan.org
+            echo "Katalog public_html:"
+            ls -la rowerowy.otwartyplan.org/public_html
 
-            echo "Katalog mapy:"
-            ls -la rowerowy.otwartyplan.org/mapa
+            echo "Katalog aplikacji mapa:"
+            ls -la rowerowy.otwartyplan.org/public_html/mapa
 
-            echo "Pliki HTML:"
-            ls -l rowerowy.otwartyplan.org/mapa/index.html
+            echo "Sprawdzenie index.html:"
+            if [ -f rowerowy.otwartyplan.org/public_html/mapa/index.html ]; then
+              echo "OK - znaleziono DaRoPlan index.html"
+            else
+              echo "Nie znaleziono index.html w tej lokalizacji"
+            fi
 
