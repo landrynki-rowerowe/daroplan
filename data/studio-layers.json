@@ -1,0 +1,1922 @@
+[
+ {
+  "id": "metro-bike",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "metro-bike",
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "name"
+    ],
+    [
+     "W",
+     "N"
+    ],
+    "hsl(46, 92%, 66%)",
+    [
+     "M",
+     "D",
+     "B"
+    ],
+    "hsl(33, 100%, 56%)",
+    [
+     "L",
+     "S",
+     "WTR"
+    ],
+    "hsl(0, 0%, 59%)",
+    [
+     "G",
+     "3",
+     "6",
+     "4",
+     "5"
+    ],
+    "hsl(137, 95%, 39%)",
+    [
+     "Super K",
+     "1",
+     "2",
+     "29"
+    ],
+    "hsl(0, 100%, 57%)",
+    [
+     "A",
+     "E"
+    ],
+    "hsl(220, 96%, 64%)",
+    [
+     "Z"
+    ],
+    "#8c5a03",
+    [
+     "P"
+    ],
+    "#9669f7",
+    "#000000"
+   ],
+   "line-width": [
+    "interpolate",
+    [
+     "linear"
+    ],
+    [
+     "zoom"
+    ],
+    12,
+    5,
+    16,
+    50
+   ],
+   "line-opacity": [
+    "interpolate",
+    [
+     "linear"
+    ],
+    [
+     "zoom"
+    ],
+    10,
+    1,
+    16,
+    0.71
+   ]
+  }
+ },
+ {
+  "id": "krakow-granice-miasta",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "Krakow_granice_miasta",
+  "layout": {},
+  "paint": {
+   "line-dasharray": [
+    4,
+    2,
+    1,
+    2,
+    4
+   ],
+   "line-opacity": 0.79,
+   "line-width": 2,
+   "line-color": "hsl(0, 0%, 45%)"
+  }
+ },
+ {
+  "id": "zamaledowania",
+  "type": "fill",
+  "source": "composite",
+  "source-layer": "zamaledowania-hex",
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "fill-color": [
+    "interpolate",
+    [
+     "linear"
+    ],
+    [
+     "get",
+     "r_ogolem"
+    ],
+    3,
+    "hsl(42, 99%, 87%)",
+    411,
+    "#ffcc00",
+    819,
+    "#ff9900",
+    1227,
+    "#ff6600",
+    1634,
+    "#b20101"
+   ],
+   "fill-opacity": 0.68,
+   "fill-outline-color": "#bfbfbf"
+  }
+ },
+ {
+  "id": "zameldowanie3d",
+  "type": "fill-extrusion",
+  "source": "composite",
+  "source-layer": "zamaledowania-hex",
+  "layout": {
+   "fill-extrusion-edge-radius": 0.1,
+   "visibility": "none"
+  },
+  "paint": {
+   "fill-extrusion-color": [
+    "interpolate",
+    [
+     "linear"
+    ],
+    [
+     "get",
+     "r_ogolem"
+    ],
+    3,
+    "hsl(46, 99%, 85%)",
+    411,
+    "hsl(33, 100%, 65%)",
+    819,
+    "hsl(18, 100%, 65%)",
+    1227,
+    "hsl(0, 99%, 59%)",
+    1634,
+    "hsl(360, 100%, 36%)"
+   ],
+   "fill-extrusion-height": [
+    "interpolate",
+    [
+     "linear"
+    ],
+    [
+     "get",
+     "r_ogolem"
+    ],
+    3,
+    1,
+    1634,
+    1600
+   ],
+   "fill-extrusion-ambient-occlusion-intensity": 0.4,
+   "fill-extrusion-opacity": 0.85,
+   "fill-extrusion-vertical-scale": 2
+  }
+ },
+ {
+  "id": "studium24",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "STUDIUM.2.4",
+  "layout": {
+   "line-join": "round",
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "case",
+    [
+     "match",
+     [
+      "get",
+      "Name"
+     ],
+     [
+      "Nr 1",
+      "Nr 3",
+      "Nr 5",
+      "Nr 7",
+      "Nr 9",
+      "Nr 11",
+      "Nr 9 P",
+      "Nr 1 S"
+     ],
+     true,
+     false
+    ],
+    "#ff1a1a",
+    [
+     "match",
+     [
+      "get",
+      "Name"
+     ],
+     [
+      "Nr 2",
+      "Nr 4",
+      "Nr 6",
+      "Nr 6 A",
+      "Nr 8",
+      "Nr 10",
+      "Nr 12"
+     ],
+     true,
+     false
+    ],
+    "#00ad2b",
+    [
+     "match",
+     [
+      "get",
+      "kategoria"
+     ],
+     [
+      "łącznikowa"
+     ],
+     true,
+     false
+    ],
+    "#3366ff",
+    [
+     "match",
+     [
+      "get",
+      "kategoria"
+     ],
+     [
+      "velo"
+     ],
+     true,
+     false
+    ],
+    "#e5a606",
+    "rgba(0, 0, 0, 0)"
+   ],
+   "line-opacity": 0.75,
+   "line-width": [
+    "interpolate",
+    [
+     "linear"
+    ],
+    [
+     "zoom"
+    ],
+    12,
+    4,
+    16,
+    6
+   ]
+  }
+ },
+ {
+  "id": "trasa_1",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    1
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_2",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    2
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_4",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    4
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_5",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    5
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_6",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    6
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_7",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    7
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_8",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    8
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_9",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    9
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_10",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    10
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_11",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    11
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_12",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    12
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_13",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    13
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_14",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    14
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_15",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    15
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_16",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    16
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_17",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    17
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_18",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    18
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_19",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    19
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ },
+ {
+  "id": "trasa_20",
+  "type": "line",
+  "source": "composite",
+  "source-layer": "trasy-krk-koncepcja-12-2025",
+  "filter": [
+   "match",
+   [
+    "get",
+    "nr_liczba"
+   ],
+   [
+    20
+   ],
+   true,
+   false
+  ],
+  "layout": {
+   "visibility": "none"
+  },
+  "paint": {
+   "line-color": [
+    "match",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    [
+     1,
+     5
+    ],
+    "hsl(353, 90%, 45%)",
+    [
+     2,
+     8
+    ],
+    "hsl(124, 36%, 54%)",
+    [
+     4,
+     11
+    ],
+    "hsl(237, 70%, 39%)",
+    [
+     9,
+     16,
+     19
+    ],
+    "hsl(145, 66%, 19%)",
+    [
+     6,
+     20
+    ],
+    "hsl(199, 100%, 44%)",
+    [
+     7,
+     13
+    ],
+    "hsl(316, 39%, 50%)",
+    [
+     10,
+     14,
+     18
+    ],
+    "hsl(37, 92%, 51%)",
+    [
+     12,
+     15,
+     17
+    ],
+    "hsl(21, 30%, 36%)",
+    "hsl(353, 0%, 82%)"
+   ],
+   "line-width": 12,
+   "line-opacity": 0.65,
+   "line-pattern": [
+    "step",
+    [
+     "get",
+     "nr_liczba"
+    ],
+    "",
+    20,
+    ""
+   ]
+  }
+ }
+]
