@@ -1,0 +1,39 @@
+
+name: Kopia zapasowa DaRoPlanu
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Utworz kopie na dhosting
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -eu
+
+            cd "$HOME/rowerowy.otwartyplan.org"
+
+            test -s public_html/mapa/index.html
+            mkdir -p backup-daroplan
+
+            DATE=$(date -u +%Y%m%d-%H%M%S)
+
+            tar -czf \
+              "backup-daroplan/daroplan-$DATE.tar.gz" \
+              -C public_html mapa
+
+            test -s "backup-daroplan/daroplan-$DATE.tar.gz"
+
+            echo "BACKUP OK"
+            echo "Archiwum: daroplan-$DATE.tar.gz"
