@@ -1,0 +1,65 @@
+
+name: Test OpenSSH - dhosting
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-ssh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Zainstaluj klienta SSH
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
+
+      - name: Zweryfikuj klucz serwera i przygotuj SSH
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+        run: |
+          set -eu
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          ssh-keyscan -T 15 -p "$PORT" \
+            -t ed25519 "$HOST" \
+            > ~/.ssh/known_hosts 2>/dev/null
+
+          test -s ~/.ssh/known_hosts
+
+          ACTUAL=$(ssh-keygen -lf \
+            ~/.ssh/known_hosts -E sha256 \
+            | awk '{print $2}')
+
+          test "$ACTUAL" = "$EXPECTED" || {
+            echo "FINGERPRINT MISMATCH"
+            exit 1
+          }
+
+          chmod 600 ~/.ssh/known_hosts
+          echo "FINGERPRINT OK"
+
+      - name: Przetestuj logowanie OpenSSH
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -eu
+
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=yes \
+            -o PreferredAuthentications=password,keyboard-interactive \
+            -o ConnectTimeout=20 \
+            -o NumberOfPasswordPrompts=1 \
+            -p "$PORT" \
+            "$USER@$HOST" \
+            'echo "OPENSSH CONNECTED"; pwd'
