@@ -1,0 +1,46 @@
+
+name: Diagnostyka SSH dhosting
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sprawdz port SSH i fingerprint
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+        run: |
+          set -eu
+
+          echo "Sprawdzam polaczenie TCP:"
+          timeout 10 bash -c \
+            'echo > /dev/tcp/$SSH_HOST/$SSH_PORT' \
+            && echo "PORT OPEN"
+
+          echo "Pobieram publiczny klucz serwera:"
+          ssh-keyscan -T 10 -p "$SSH_PORT" \
+            -t ed25519 "$SSH_HOST" \
+            > /tmp/dhosting_hostkey 2>/dev/null
+
+          test -s /tmp/dhosting_hostkey
+
+          echo "Weryfikuje odcisk ED25519:"
+          ACTUAL=$(ssh-keygen -lf \
+            /tmp/dhosting_hostkey -E sha256 | awk '{print $2}')
+
+          if [ "$ACTUAL" = "$EXPECTED" ]; then
+            echo "FINGERPRINT OK"
+          else
+            echo "FINGERPRINT MISMATCH"
+            exit 1
+          fi
+
+          echo "DIAGNOSTYKA SSH OK"
