@@ -23,62 +23,96 @@ jobs:
           ref: dev
           persist-credentials: false
 
-      - name: Sprawdz pliki
+      - name: Sprawdz pliki aplikacji
         run: |
-          set -eu
+          set -euo pipefail
           test -s index.html
           test -s js/app.js
           test -d css
           test -d data
+          echo "PLIKI OK"
 
-      - name: Sprawdz fingerprint SSH
-        env:
-          FP: ${{ secrets.SSH_FINGERPRINT }}
+      - name: Zainstaluj sshpass
         run: |
-          test -n "$FP" || {
-            echo "Brak SSH_FINGERPRINT"
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
+
+      - name: Przygotuj bezpieczne polaczenie SSH
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          ssh-keyscan -T 15 -p "$PORT" \
+            -t ed25519 "$HOST" \
+            > ~/.ssh/known_hosts 2>/dev/null
+
+          test -s ~/.ssh/known_hosts
+
+          ACTUAL=$(ssh-keygen -lf \
+            ~/.ssh/known_hosts -E sha256 \
+            | awk '{print $2}')
+
+          test "$ACTUAL" = "$EXPECTED" || {
+            echo "FINGERPRINT MISMATCH"
             exit 1
           }
 
-      - name: Sprawdz katalog DEV na serwerze
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
-          script: |
-            set -eu
-            cd "$HOME/rowerowy.otwartyplan.org/public_html"
-            test -d mapa-dev
-            test ! -L mapa-dev
-            echo "Katalog DEV istnieje"
+          chmod 600 ~/.ssh/known_hosts
+          echo "FINGERPRINT OK"
+
+      - name: Sprawdz katalog docelowy
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 \
+            -p "$PORT" \
+            "$USER@$HOST" \
+            'test -d rowerowy.otwartyplan.org/public_html/mapa-dev && test ! -L rowerowy.otwartyplan.org/public_html/mapa-dev'
+
+          echo "KATALOG DEV OK"
 
       - name: Publikuj pliki DEV
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
-          source: "index.html,css,js,data"
-          target: "rowerowy.otwartyplan.org/public_html/mapa-dev/"
-          overwrite: true
-          rm: false
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
 
-      - name: Sprawdz wdrozenie
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
-          script: |
-            set -eu
-            cd "$HOME/rowerowy.otwartyplan.org/public_html/mapa-dev"
-            test -s index.html
-            test -s js/app.js
-            echo "DAROPLAN DEV DEPLOY OK"
+          sshpass -e scp \
+            -o StrictHostKeyChecking=yes \
+            -P "$PORT" \
+            -r \
+            index.html css js data \
+            "$USER@$HOST:rowerowy.otwartyplan.org/public_html/mapa-dev/"
+
+          echo "PLIKI PRZESLANE"
+
+      - name: Sprawdz publikacje
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=yes \
+            -p "$PORT" \
+            "$USER@$HOST" \
+            'cd rowerowy.otwartyplan.org/public_html/mapa-dev && test -s index.html && test -s js/app.js && echo "DAROPLAN DEV DEPLOY OK"'
