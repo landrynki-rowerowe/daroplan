@@ -34,6 +34,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
           script: |
             cd rowerowy.otwartyplan.org/public_html/mapa
             test -f index.html
@@ -46,6 +47,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
           source: "index.html,css,js,data"
           target: "rowerowy.otwartyplan.org/public_html/mapa/"
           overwrite: true
@@ -58,6 +60,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
           script: |
             cd rowerowy.otwartyplan.org/public_html/mapa
             test -s index.html
