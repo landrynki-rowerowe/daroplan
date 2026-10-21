@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const cfg=window.DAROPLAN_CONFIG;
-console.info('[DaRoPlan] Wersja 0.7.1-dev — VeloMałopolska');
+console.info('[DaRoPlan] Wersja 0.7.2-dev — VeloMałopolska');
 const $=id=>document.getElementById(id);
 const ui={menu:$('layersMenu'),panel:$('infoPanel'),content:$('infoContent'),results:$('searchResults'),input:$('searchInput')};
 // Kanoniczny adres bez index.html — zachowujemy hash Mapboxa i pozostałe parametry.
@@ -16,7 +16,7 @@ const infraCategories=[
 ];
 const selection=new Set(['infra','suggestions','construction','borders','ddr','cpr','allowed','pas','contra']);
 let infraExpanded=true,geoRequest=0;
-const veloIds=['velo-ddr','velo-droga','velo-inna','velo-budowa','velo-plan'];
+const veloIds=['velo-ddr','velo-droga','velo-inna','velo-budowa','velo-plan','velo-nieokreslone'];
 const veloDefaults=()=>veloIds.forEach(id=>selection.add(id));
 let previousInfraSelection=null;
 const krakowGroups=['infra','suggestions','ddr','cpr','allowed','pas','contra'];
@@ -81,10 +81,12 @@ add('supports',circle('supports','dp-ztp',null,'#00a676',['==',['get','typ'],'po
 add('repairs',circle('repairs','dp-ztp',null,'#0e81a6',['==',['get','typ'],'stacja naprawy rowerów']),'repairs');
 add('dasie',circle('dasie','dp-dasie','dasie_2.3','#dc2424'),'dasie');
 // Siec regionalna: wlasna symbolika DaRoPlanu, a nie kolory Google.
-const veloStyles={ddr:['#2456cb',null],droga:['#658b78',null],inna:['#b78355',null],budowa:['#e5a32a',[3,1.6]],plan:['#9674b7',[1.5,2]]};
+const veloStyles={ddr:['#2456cb',null],droga:['#658b78',null],inna:['#b78355',null],budowa:['#e5a32a',[3,1.6]],plan:['#9674b7',[1.5,2]],nieokreslone:['#8a7596',[1,2]]};
 for(const [cat,[color,dash]] of Object.entries(veloStyles)){
  const group='velo-'+cat;
  const layer=line(group,'dp-velo',null,color,['==',['get','category'],cat],dash,3.4);
+ // Regionalna sieć ma pozostać czytelna nawet przy oddalonej mapie.
+ layer.paint['line-width']=['interpolate',['linear'],['zoom'],9,2.0,11,3.3,13.5,5.5,16,8.0];
  layer.paint['line-opacity']=.95;
  add(group,layer,group);
 }
@@ -218,7 +220,7 @@ function renderControls(){
  const legend={suggestions:['#e32626','dotted'],construction:['#ee9a12','dashed'],tempoLines:['#f5d51b',null],tempo20:['#ffb767',null],counters:['#f47a20',null],dasie:['#dc2424',null]};
  for(const layer of layerGroups){if(layer.id==='infra')continue;const detail=legend[layer.id];box.append(row(layer.id,layer.title,detail?swatch(...detail):null));if(layer.id==='velo'){
  const wrap=document.createElement('div');wrap.className='infra-children';
- for(const [id,title,color,dash] of [['velo-ddr','DDR / CPR','#2456cb',null],['velo-droga','Droga w ruchu ogólnym','#658b78',null],['velo-inna','Inna nawierzchnia','#b78355',null],['velo-budowa','W budowie','#e5a32a','dashed'],['velo-plan','Planowane','#9674b7','dotted']])wrap.append(row(id,title,swatch(color,dash)));
+ for(const [id,title,color,dash] of [['velo-ddr','DDR / CPR','#2456cb',null],['velo-droga','Droga w ruchu ogólnym','#658b78',null],['velo-inna','Inna nawierzchnia','#b78355',null],['velo-budowa','W budowie','#e5a32a','dashed'],['velo-plan','Planowane','#9674b7','dotted'],['velo-nieokreslone','Inne oznaczenia — do weryfikacji','#8a7596','dotted']])wrap.append(row(id,title,swatch(color,dash)));
  box.append(wrap);
  const note=textNode('div','Włączenie VeloMałopolski ukrywa sieć Krakowa. Możesz ją ponownie włączyć powyżej.','fixed-layer-note');box.append(note);
  }}
