@@ -45,7 +45,7 @@ const layerGroups=[
  {id:'velo',title:'VeloMałopolska'},
  {id:'residences',title:'Zameldowania'}
 ];
-function line(id,source,sourceLayer,color,filter,dash,width=3){const layer={id:'dp-'+id,type:'line',source,paint:{'line-color':color,'line-width':['interpolate',['linear'],['zoom'],9,Math.max(.65,width*.30),11,Math.max(.85,width*.42),13.5,width*.75,16,width*1.30],'line-opacity':.93}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;if(dash)layer.paint['line-dasharray']=dash;return layer;}
+function line(id,source,sourceLayer,color,filter,dash,width=3){const layer={id:'dp-'+id,type:'line',source,paint:{'line-color':color,'line-width':['interpolate',['linear'],['zoom'],9,Math.max(.65,width*.30),11,Math.max(.85,width*.42),13.5,width*.75,16,width*1.30],'line-opacity':.93}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;if(dash)layer.paint['line-dasharray']=dash;layer.layout={'line-cap':'round','line-join':'round'};return layer;}
 function circle(id,source,sourceLayer,color,filter){const layer={id:'dp-'+id,type:'circle',source,paint:{'circle-radius':['interpolate',['linear'],['zoom'],9,2,11,3,13.5,4.5,16,8],'circle-color':color,'circle-stroke-width':['interpolate',['linear'],['zoom'],11,.8,13.5,1.3,16,1.8],'circle-stroke-color':'#fff','circle-opacity':.9}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;return layer;}
 function add(id,layer,group){try{if(!map.getLayer(layer.id))map.addLayer(layer);layerIndex.set(layer.id,group);map.setLayoutProperty(layer.id,'visibility',visibleGroup(group)?'visible':'none');}catch(e){console.warn('[DaRoPlan] Nie udało się dodać',id,e.message)}}
 const layerIndex=new Map();
@@ -85,11 +85,11 @@ add('dasie',circle('dasie','dp-dasie','dasie_2.3','#dc2424'),'dasie');
 // Droga w ruchu ogólnym: identyczny kolor i kreskowanie jak kontraruch w Krakowie.
 const veloStyles={
  ddr:{color:'#2456cb',dash:null,width:[3.3,3.3,3.2,3.25]},
- droga:{color:'#159924',dash:[2.5,1.5],width:[3.3,3.3,3.2,3.25]},
- inna:{color:'#e32626',dash:[2,1.6],width:[2.5,2.5,2.4,2.6]},
- budowa:{color:'#f3a414',dash:[3,1.6],width:[3.3,3.3,3.2,3.7]},
- plan:{color:'#9848ce',dash:[.5,1.6],width:[3.3,3.3,3.2,3.25]},
- nieokreslone:{color:'#7d42b3',dash:[1,2],width:[2.8,2.8,2.8,3.0]}
+ droga:{color:'#159924',dash:[1.6,1.55],width:[3.3,3.3,3.2,3.25]},
+ inna:{color:'#e32626',dash:[1.6,1.7],width:[2.5,2.5,2.4,2.6]},
+ budowa:{color:'#f3a414',dash:[2.1,1.65],width:[3.3,3.3,3.2,3.7]},
+ plan:{color:'#9848ce',dash:[0.01,2.15],width:[3.3,3.3,3.2,3.25]},
+ nieokreslone:{color:'#7d42b3',dash:[0.01,2.15],width:[2.8,2.8,2.8,3.0]}
 };
 for(const [cat,style] of Object.entries(veloStyles)){
  const group='velo-'+cat;

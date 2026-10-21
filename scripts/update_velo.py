@@ -4,7 +4,7 @@ Użycie: python3 scripts/update_velo.py [źródłowy-plik.kml]
 Bez pliku: pobranie publicznej mapy Google My Maps (jeżeli eksport jest dostępny).
 Importuje folder główny oraz "Pozostała infrastruktura rowerowa"; pozostałe foldery wykluczone.
 """
-import io, json, sys, zipfile, urllib.request, xml.etree.ElementTree as ET
+import re, io, json, sys, zipfile, urllib.request, xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from html import unescape
 from pathlib import Path
@@ -29,11 +29,30 @@ class TextFromKML(HTMLParser):
     def handle_data(self,data):
         self.items.append(data)
 
+# Puste atrybuty GIS bywają dołączane do opisów w Google My Maps.
+# Odrzucamy wyłącznie etykiety techniczne; treść opisowa pozostaje bez zmian.
+TECHNICAL_KEYS = re.compile(
+    r'^(?:Layer|WERSJA_DO|WAZNY_DO|JPT_[A-Z0-9_]*|ID_BUFOR[A-Z0-9_]*|'
+    r'ID_TECHNIC|IIP_[A-Z0-9_]*|SHAPE_(?:LENG|AREA)|REGON|RODZAJ)\s*:\s*$',
+    re.IGNORECASE,
+)
+EMPTY_FIELDS = {'id','typ trasy','nazwa','powiat','przebieg','dlugosc','atrakcje',
+                'nawierzch','przewyzsz','czas prze','stopien t','wersja_od','wazny_od'}
+
 def clean_description(raw):
     parser=TextFromKML()
     parser.feed(unescape(raw or ''))
     lines=[' '.join(line.split()) for line in ''.join(parser.items).splitlines()]
-    return '\n'.join(line for line in lines if line and not (line.endswith(':') and line.lower().rstrip(':') in {'id','typ trasy','nazwa','powiat','przebieg','dlugosc','atrakcje','nawierzch','przewyzsz','czas prze','stopien t','jpt_sjr_ko','jpt_powier','jpt_kod_je','jpt_nazwa_','jpt_jor_id','wersja_od','wazny_od'})).strip()
+    cleaned=[]
+    for line in lines:
+        if not line:
+            continue
+        if TECHNICAL_KEYS.fullmatch(line):
+            continue
+        if line.endswith(':') and line[:-1].strip().lower() in EMPTY_FIELDS:
+            continue
+        cleaned.append(line)
+    return '\n'.join(cleaned).strip()
 
 def load():
     if len(sys.argv)>1:raw=Path(sys.argv[1]).read_bytes()
