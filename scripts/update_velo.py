@@ -2,7 +2,7 @@
 """Deterministyczna konwersja źródłowej mapy VeloMałopolska KML/KMZ.
 Użycie: python3 scripts/update_velo.py [źródłowy-plik.kml]
 Bez pliku: pobranie publicznej mapy Google My Maps (jeżeli eksport jest dostępny).
-Tylko folder "Stan prac/rodzaj nawierzchni" — nie pozostałe foldery mapy.
+Importuje folder główny oraz "Pozostała infrastruktura rowerowa"; pozostałe foldery wykluczone.
 """
 import io, json, sys, zipfile, urllib.request, xml.etree.ElementTree as ET
 from pathlib import Path
@@ -11,7 +11,7 @@ MID='16UMazp6pz-IQxUXpUl1c3suxCMHPcpFE'
 URL=f'https://www.google.com/maps/d/kml?mid={MID}&forcekml=1'
 NS={'k':'http://www.opengis.net/kml/2.2'}
 TARGET=Path(__file__).resolve().parents[1]/'data'/'velomalopolska.geojson'
-FOLDER='Stan prac/rodzaj nawierzchni'
+FOLDERS=('Stan prac/rodzaj nawierzchni', 'Pozostała infrastruktura rowerowa')
 COLOR_CATEGORY={'000000':'ddr','bdbdbd':'droga','ff5252':'inna','ffd600':'budowa','673ab7':'plan'}
 
 def load():
@@ -37,31 +37,51 @@ def parse_coords(text):
     return coords
 
 def convert(root):
-    target=next((f for f in root.findall('.//k:Folder',NS) if f.findtext('k:name',default='',namespaces=NS)==FOLDER),None)
-    if target is None:raise ValueError(f'Nie znaleziono folderu: {FOLDER}. Nie nadpisuję danych.')
-    # Google My Maps nadaje StyleUrl np. #line-FF5252-5000;
-    # kolor źródłowy służy TYLKO ustaleniu kategorii.
-    features=[];unknown=[]
-    for pm in target.findall('./k:Placemark',NS):
-        name=pm.findtext('k:name',default='',namespaces=NS)
-        ref=pm.findtext('k:styleUrl',default='',namespaces=NS)
-        parts=ref.lstrip('#').split('-')
-        src=parts[1].lower() if len(parts)>=3 and parts[0]=='line' else ''
-        category=COLOR_CATEGORY.get(src)
-        if category is None:
-            unknown.append((name,ref));continue
-        for node in pm.findall('.//k:LineString/k:coordinates',NS):
-            coords=parse_coords(node.text)
-            if len(coords)<2:continue
-            features.append({'type':'Feature','properties':{
-                'name':name,'category':category,'source_color':'#'+src,
-                'source_style':ref,'source':'VeloMałopolska / Google My Maps'
-            },'geometry':{'type':'LineString','coordinates':coords}})
-    if unknown:raise ValueError(f'Nierozpoznana kolorystyka {len(unknown)} obiektów, np. {unknown[:4]}')
-    if len(features)<300:raise ValueError(f'Tylko {len(features)} odcinków — przerywam, aby nie zastąpić pełnej mapy danymi niekompletnymi')
-    counts={c:sum(f['properties']['category']==c for f in features) for c in COLOR_CATEGORY.values()}
-    if any(v==0 for v in counts.values()):raise ValueError(f'Brak jednej z pięciu kategorii: {counts}')
-    return {'type':'FeatureCollection','features':features}, counts
+    folders = {}
+    for f in root.findall('.//k:Folder', NS):
+        name=f.findtext('k:name',default='',namespaces=NS)
+        if name in FOLDERS:
+            folders[name]=f
+    missing=set(FOLDERS)-set(folders)
+    if missing:
+        raise ValueError(f'Brak folderów {missing}; zachowuję poprzednie dane')
+    features=[]; counts_by_folder={}; unknown=[]
+    for folder_name in FOLDERS:
+        current=0
+        for pm in folders[folder_name].findall('./k:Placemark',NS):
+            name=pm.findtext('k:name',default='',namespaces=NS)
+            ref=pm.findtext('k:styleUrl',default='',namespaces=NS)
+            parts=ref.lstrip('#').split('-')
+            src=parts[1].lower() if len(parts)>=3 and parts[0]=='line' else ''
+            category=COLOR_CATEGORY.get(src)
+            # Pięć obiektów w uzupełniającej warstwie ma inne barwy źródłowe.
+            # Nie zgadujemy klasyfikacji: ujawniamy je jawnie jako nierozpoznane.
+            if category is None:
+                category='nieokreslone'
+                unknown.append((name,ref))
+            nodes=pm.findall('.//k:LineString/k:coordinates',NS)
+            if not nodes:
+                raise ValueError(f'Obiekt bez linii: {name}')
+            for node in nodes:
+                coords=parse_coords(node.text)
+                if len(coords)<2:
+                    print('UWAGA: pominięta geometria z mniej niż 2 punktami:',name)
+                    continue
+                features.append({'type':'Feature','properties':{
+                    'name':name,'category':category,'source_color':'#'+src,
+                    'source_style':ref,'source_folder':folder_name,
+                    'source':'VeloMałopolska / Google My Maps'
+                },'geometry':{'type':'LineString','coordinates':coords}})
+                current+=1
+        counts_by_folder[folder_name]=current
+    if counts_by_folder[FOLDERS[0]]<300 or counts_by_folder[FOLDERS[1]]<250:
+        raise ValueError(f'Podejrzanie mało odcinków: {counts_by_folder}')
+    counts={c:sum(f['properties']['category']==c for f in features) for c in (*COLOR_CATEGORY.values(),'nieokreslone')}
+    if any(counts.get(c,0)==0 for c in COLOR_CATEGORY.values()):
+        raise ValueError(f'Brak jednej z kategorii: {counts}')
+    print('Foldery:',counts_by_folder)
+    if unknown: print('UWAGA: nierozpoznane kolory (nie zgaduję kategorii):',unknown)
+    return {'type':'FeatureCollection','features':features},counts
 
 def main():
     collection,counts=convert(load())
