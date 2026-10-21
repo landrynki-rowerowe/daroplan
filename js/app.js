@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const cfg=window.DAROPLAN_CONFIG;
-console.info('[DaRoPlan] Wersja 0.6.1-dev — stopniowanie grubości wg zoomu');
+console.info('[DaRoPlan] Wersja 0.7.1-dev — VeloMałopolska');
 const $=id=>document.getElementById(id);
 const ui={menu:$('layersMenu'),panel:$('infoPanel'),content:$('infoContent'),results:$('searchResults'),input:$('searchInput')};
 // Kanoniczny adres bez index.html — zachowujemy hash Mapboxa i pozostałe parametry.
@@ -16,6 +16,12 @@ const infraCategories=[
 ];
 const selection=new Set(['infra','suggestions','construction','borders','ddr','cpr','allowed','pas','contra']);
 let infraExpanded=true,geoRequest=0;
+const veloIds=['velo-ddr','velo-droga','velo-inna','velo-budowa','velo-plan'];
+const veloDefaults=()=>veloIds.forEach(id=>selection.add(id));
+let previousInfraSelection=null;
+const krakowGroups=['infra','suggestions','ddr','cpr','allowed','pas','contra'];
+function enableVelo(){if(!selection.has('velo')){previousInfraSelection=new Set(krakowGroups.filter(id=>selection.has(id)));for(const id of krakowGroups)selection.delete(id);selection.add('velo');veloDefaults();}}
+function disableVelo(){selection.delete('velo');if(previousInfraSelection){for(const id of krakowGroups)selection.delete(id);for(const id of previousInfraSelection)selection.add(id);previousInfraSelection=null;}}
 const sources={
  infra:{type:'vector',url:'mapbox://ibikekrk.cmmypfiet2x4g1opbk9r00o65-059oo'},
  tempoLines:{type:'vector',url:'mapbox://ibikekrk.cm3korqja33ub1pn91bx6ig9w-33wp9'},
@@ -26,7 +32,8 @@ const sources={
  study:{type:'vector',url:'mapbox://ibikekrk.cm4im5749384m1mlk8p85rppw-5zejk'},
  sim:{type:'vector',url:'mapbox://ibikekrk.cmjbmirn00dxw1mk2dxu4b3l4-2aqi1'},
  borders:{type:'vector',url:'mapbox://ibikekrk.ckak3ncy600m522o196zec8x9-83qbh'},
- residences:{type:'vector',url:'mapbox://ibikekrk.cm47h9e3y0myo1ut9x4uuehes-1jj7n'}
+ residences:{type:'vector',url:'mapbox://ibikekrk.cm47h9e3y0myo1ut9x4uuehes-1jj7n'},
+ velo:{type:'geojson',data:'data/velomalopolska.geojson'}
 };
 const layerGroups=[
  {id:'infra',title:'Infrastruktura rowerowa'}, {id:'suggestions',title:'Sugerowane trasy w ruchu ogólnym'},
@@ -35,6 +42,7 @@ const layerGroups=[
  {id:'supports',title:'Podpórki'}, {id:'repairs',title:'Stacje naprawy'},
  {id:'dasie',title:'DASIE — archiwum'}, {id:'study',title:'Studium tras rowerowych'},
  {id:'sim',title:'Trasy SIM — koncepcja'},
+ {id:'velo',title:'VeloMałopolska'},
  {id:'residences',title:'Zameldowania'}
 ];
 function line(id,source,sourceLayer,color,filter,dash,width=3){const layer={id:'dp-'+id,type:'line',source,paint:{'line-color':color,'line-width':['interpolate',['linear'],['zoom'],9,Math.max(.65,width*.30),11,Math.max(.85,width*.42),13.5,width*.75,16,width*1.30],'line-opacity':.93}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;if(dash)layer.paint['line-dasharray']=dash;return layer;}
@@ -42,7 +50,7 @@ function circle(id,source,sourceLayer,color,filter){const layer={id:'dp-'+id,typ
 function add(id,layer,group){try{if(!map.getLayer(layer.id))map.addLayer(layer);layerIndex.set(layer.id,group);map.setLayoutProperty(layer.id,'visibility',visibleGroup(group)?'visible':'none');}catch(e){console.warn('[DaRoPlan] Nie udało się dodać',id,e.message)}}
 const layerIndex=new Map();
 const fixedGroups=new Set(['borders']);
-function visibleGroup(group){return fixedGroups.has(group)||selection.has(group)}
+function visibleGroup(group){return fixedGroups.has(group)||(group.startsWith('velo-')?selection.has('velo')&&selection.has(group):selection.has(group))}
 function styleLayer(id,newId,src,group){const template=styleLayers.find(l=>l.id===id);if(!template)return;const layer=JSON.parse(JSON.stringify(template));layer.id='dp-'+newId;layer.source=src;if(sourceLayers[group])layer['source-layer']=sourceLayers[group];layer.layout=layer.layout||{};layer.layout.visibility='visible';add(id,layer,group);}
 function createLayers(){layerIndex.clear();for(const [id,obj] of Object.entries(sources)){if(!map.getSource('dp-'+id))try{map.addSource('dp-'+id,obj)}catch(e){console.warn('Nie można dodać źródła',id,e)}}
 // Tempo 20/30 rysujemy pierwsze, pod infrastrukturą rowerową.
@@ -72,6 +80,14 @@ add('shelters',circle('shelters','dp-ztp',null,'#c026d3',['==',['get','typ'],'wi
 add('supports',circle('supports','dp-ztp',null,'#00a676',['==',['get','typ'],'podpórka']),'supports');
 add('repairs',circle('repairs','dp-ztp',null,'#0e81a6',['==',['get','typ'],'stacja naprawy rowerów']),'repairs');
 add('dasie',circle('dasie','dp-dasie','dasie_2.3','#dc2424'),'dasie');
+// Siec regionalna: wlasna symbolika DaRoPlanu, a nie kolory Google.
+const veloStyles={ddr:['#2456cb',null],droga:['#658b78',null],inna:['#b78355',null],budowa:['#e5a32a',[3,1.6]],plan:['#9674b7',[1.5,2]]};
+for(const [cat,[color,dash]] of Object.entries(veloStyles)){
+ const group='velo-'+cat;
+ const layer=line(group,'dp-velo',null,color,['==',['get','category'],cat],dash,3.4);
+ layer.paint['line-opacity']=.95;
+ add(group,layer,group);
+}
 styleLayer('studium24','study','dp-study','study');
 if(sourceLayers.sim){
   // Trasy SIM mają różne identyfikatory source-layer zależnie od wersji tilesetu.
@@ -183,24 +199,29 @@ function closePanel(){clearFeatureHighlight();ui.panel.classList.add('hidden');d
 function showPanel(title,kind,properties={},extra){ui.content.replaceChildren();ui.content.append(textNode('div',kind,'tag'),textNode('h2',title));if(extra)ui.content.append(extra);for(const [k,v] of Object.entries(properties)){if(v===null||v===undefined||v===''||typeof v==='object')continue;const wrap=textNode('div','','property');wrap.append(textNode('b',k),textNode('span',String(v).slice(0,500)));ui.content.append(wrap)}openPanel('content');}
 function link(text,url){const a=textNode('a',text,'action');a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a}
 function toast(message){$('toast').textContent=message;$('toast').classList.remove('hidden');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.add('hidden'),3200)}
-function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.id));if(!f)return;highlightFeature(f);const group=layerIndex.get(f.layer.id);const p=f.properties||{};const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'&&p.tweet_id){const tweetId=String(p.tweet_id).trim();extra.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));const embed=document.createElement('div');embed.className='tweet-embed';extra.append(embed);showPanel(label,'DASIE — archiwum',p,extra);renderTweet(tweetId,embed);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
+function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.id));if(!f)return;highlightFeature(f);const group=layerIndex.get(f.layer.id);const p=f.properties||{};const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group.startsWith('velo-'))extra.append(textNode('p','Regionalna trasa VeloMałopolska; kategoria: '+String(p.category||'')));if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'&&p.tweet_id){const tweetId=String(p.tweet_id).trim();extra.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));const embed=document.createElement('div');embed.className='tweet-embed';extra.append(embed);showPanel(label,'DASIE — archiwum',p,extra);renderTweet(tweetId,embed);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
 function renderTweet(id,container){
   const embed=()=>{if(!window.twttr?.widgets?.createTweet)return false;
     window.twttr.widgets.createTweet(id,container,{lang:'pl',dnt:true,align:'center'}).then(node=>{if(!node)container.append(textNode('p','Podgląd niedostępny — użyj linku do oryginalnego wpisu.'));}).catch(()=>container.append(textNode('p','Nie udało się osadzić wpisu. Link powyżej pozostaje dostępny.')));return true;};
   if(embed())return;let tries=0;const interval=setInterval(()=>{if(!container.isConnected||embed()||++tries>40)clearInterval(interval);},200);
 }
 function attachClicks(){map.on('click',e=>{const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none');const feats=ids.length?map.queryRenderedFeatures(e.point,{layers:ids}):[];if(feats.length){selectedFeature({features:feats});return} });map.on('mousemove',e=>{const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none');map.getCanvas().style.cursor=ids.length&&map.queryRenderedFeatures(e.point,{layers:ids}).length?'pointer':''})}
-function configureModes(next){mode=next;document.querySelectorAll('[data-mode]').forEach(el=>el.classList.toggle('active',el.dataset.mode===next));if(next==='infra'){selection.clear();['infra','suggestions','construction',...infraCategories.map(x=>x.id)].forEach(x=>selection.add(x));syncVisibility();return}if(next==='ruch'){selection.clear();selection.add('counters');syncVisibility();showPanel('Ruch rowerowy','Moduł',{},(()=>{const d=document.createElement('div');d.append(textNode('p','Wybierz licznik na mapie. Zaawansowane porównania i profile dobowe pozostają w istniejącej aplikacji.'),link('Otwórz analizy pomiarów →',cfg.analysisUrl));return d})());return}if(next==='historia'){selection.clear();['infra','dasie',...infraCategories.map(x=>x.id)].forEach(x=>selection.add(x));syncVisibility();showPanel('Historia','Moduł',{},textNode('p','DASIE to archiwum wydarzeń. Suwak czasu infrastruktury dodamy po sprawdzeniu pól dat w danych źródłowych.'));return}if(next==='trasy'){selection.clear();['infra','suggestions','sim',...infraCategories.map(x=>x.id)].forEach(x=>selection.add(x));syncVisibility();return}showPanel('Więcej o DaRoPlanie','Projekt',{},textNode('p','Tu znajdą się landrynki, planer tras, materiały społeczności i dodatkowe narzędzia. W tej pierwszej wersji działają mapa, podkłady, warstwy i panel kontekstowy.'));}
+function configureModes(next){if(selection.has('velo'))disableVelo();mode=next;document.querySelectorAll('[data-mode]').forEach(el=>el.classList.toggle('active',el.dataset.mode===next));if(next==='infra'){selection.clear();['infra','suggestions','construction',...infraCategories.map(x=>x.id)].forEach(x=>selection.add(x));syncVisibility();return}if(next==='ruch'){selection.clear();selection.add('counters');syncVisibility();showPanel('Ruch rowerowy','Moduł',{},(()=>{const d=document.createElement('div');d.append(textNode('p','Wybierz licznik na mapie. Zaawansowane porównania i profile dobowe pozostają w istniejącej aplikacji.'),link('Otwórz analizy pomiarów →',cfg.analysisUrl));return d})());return}if(next==='historia'){selection.clear();['infra','dasie',...infraCategories.map(x=>x.id)].forEach(x=>selection.add(x));syncVisibility();showPanel('Historia','Moduł',{},textNode('p','DASIE to archiwum wydarzeń. Suwak czasu infrastruktury dodamy po sprawdzeniu pól dat w danych źródłowych.'));return}if(next==='trasy'){selection.clear();['infra','suggestions','sim',...infraCategories.map(x=>x.id)].forEach(x=>selection.add(x));syncVisibility();return}showPanel('Więcej o DaRoPlanie','Projekt',{},textNode('p','Tu znajdą się landrynki, planer tras, materiały społeczności i dodatkowe narzędzia. W tej pierwszej wersji działają mapa, podkłady, warstwy i panel kontekstowy.'));}
 function renderControls(){
  const box=$('layerControls');box.replaceChildren();
- const row=(id,title,swatch)=>{const label=textNode('label','','layer-line'),input=document.createElement('input');input.type='checkbox';input.checked=selection.has(id);input.addEventListener('change',()=>{input.checked?selection.add(id):selection.delete(id);syncVisibility();renderControls()});label.append(input);if(swatch)label.append(swatch);label.append(textNode('span',title));return label};
+ const row=(id,title,swatch)=>{const label=textNode('label','','layer-line'),input=document.createElement('input');input.type='checkbox';input.checked=selection.has(id);input.addEventListener('change',()=>{if(id==='velo'){input.checked?enableVelo():disableVelo()}else{input.checked?selection.add(id):selection.delete(id)}syncVisibility();renderControls()});label.append(input);if(swatch)label.append(swatch);label.append(textNode('span',title));return label};
  const swatch=(color,dash)=>{const el=document.createElement('span');el.className='legend-line'+(dash?' '+dash:'');el.style.setProperty('--legend-color',color);el.setAttribute('aria-hidden','true');return el};
  const infraHeader=document.createElement('div');infraHeader.className='infra-header';
  infraHeader.append(row('infra','Infrastruktura rowerowa'));
  const expand=document.createElement('button');expand.type='button';expand.className='expand-infra';expand.textContent=infraExpanded?'▾':'▸';expand.title=infraExpanded?'Zwiń kategorie':'Rozwiń kategorie';expand.setAttribute('aria-expanded',String(infraExpanded));expand.onclick=()=>{infraExpanded=!infraExpanded;renderControls()};infraHeader.append(expand);box.append(infraHeader);
  if(infraExpanded){const wrap=document.createElement('div');wrap.className='infra-children';for(const cat of infraCategories)wrap.append(row(cat.id,cat.name,swatch(cat.color,cat.dash)));box.append(wrap)}
  const legend={suggestions:['#e32626','dotted'],construction:['#ee9a12','dashed'],tempoLines:['#f5d51b',null],tempo20:['#ffb767',null],counters:['#f47a20',null],dasie:['#dc2424',null]};
- for(const layer of layerGroups){if(layer.id==='infra')continue;const detail=legend[layer.id];box.append(row(layer.id,layer.title,detail?swatch(...detail):null))}
+ for(const layer of layerGroups){if(layer.id==='infra')continue;const detail=legend[layer.id];box.append(row(layer.id,layer.title,detail?swatch(...detail):null));if(layer.id==='velo'){
+ const wrap=document.createElement('div');wrap.className='infra-children';
+ for(const [id,title,color,dash] of [['velo-ddr','DDR / CPR','#2456cb',null],['velo-droga','Droga w ruchu ogólnym','#658b78',null],['velo-inna','Inna nawierzchnia','#b78355',null],['velo-budowa','W budowie','#e5a32a','dashed'],['velo-plan','Planowane','#9674b7','dotted']])wrap.append(row(id,title,swatch(color,dash)));
+ box.append(wrap);
+ const note=textNode('div','Włączenie VeloMałopolski ukrywa sieć Krakowa. Możesz ją ponownie włączyć powyżej.','fixed-layer-note');box.append(note);
+ }}
  const fixed=document.createElement('div');fixed.className='fixed-layer-note';fixed.append(swatch('#777','dashed'),textNode('span','Granice Krakowa — zawsze widoczne'));box.append(fixed);
 }
 // Wyszukiwanie lokalizacji Mapbox Geocoding. Własny indeks treści dodamy w następnym etapie.
