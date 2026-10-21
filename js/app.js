@@ -209,6 +209,36 @@ function closePanel(){clearFeatureHighlight();ui.panel.classList.add('hidden');d
 function showPanel(title,kind,properties={},extra){ui.content.replaceChildren();ui.content.append(textNode('div',kind,'tag'),textNode('h2',title));if(extra)ui.content.append(extra);for(const [k,v] of Object.entries(properties)){if(v===null||v===undefined||v===''||typeof v==='object')continue;const wrap=textNode('div','','property');wrap.append(textNode('b',k),textNode('span',String(v).slice(0,500)));ui.content.append(wrap)}openPanel('content');}
 function link(text,url){const a=textNode('a',text,'action');a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a}
 function toast(message){$('toast').textContent=message;$('toast').classList.remove('hidden');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.add('hidden'),3200)}
+// Renderuj zwykły tekst i adresy HTTP(S) jako bezpieczne linki, bez interpretacji HTML z KML.
+function linkedDescription(text){
+ const container=document.createElement('p');
+ container.style.whiteSpace='pre-line';
+ const pattern=/(https?:\/\/[^\s<>"'\u201c\u201d]+|www\.[^\s<>"'\u201c\u201d]+)/gi;
+ let from=0;
+ for(const m of text.matchAll(pattern)){
+  const raw=m[0];
+  container.append(document.createTextNode(text.slice(from,m.index)));
+  // Zakończenia zdań, przecinki i nawiasy nie są częścią adresu.
+  const candidate=raw.replace(/[.,;:!?\])}]+$/g,'');
+  const rest=raw.slice(candidate.length);
+  try{
+   const address=new URL(/^www\./i.test(candidate)?'https://'+candidate:candidate);
+   if(['http:','https:'].includes(address.protocol)){
+    const a=document.createElement('a');
+    a.href=address.href;
+    a.target='_blank';
+    a.rel='noopener noreferrer';
+    a.textContent=candidate;
+    a.style.overflowWrap='anywhere';
+    container.append(a);
+   }else container.append(document.createTextNode(candidate));
+  }catch(_){container.append(document.createTextNode(candidate));}
+  container.append(document.createTextNode(rest));
+  from=m.index+raw.length;
+ }
+ container.append(document.createTextNode(text.slice(from)));
+ return container;
+}
 function showVeloFeature(p,group){
  const name=String(p.name||'Odcinek VeloMałopolska');
  const names={ddr:'DDR / CPR',droga:'Droga w ruchu ogólnym',inna:'Inna nawierzchnia — uwaga',budowa:'W budowie',plan:'Planowane',nieokreslone:'Do weryfikacji'};
@@ -218,8 +248,7 @@ function showVeloFeature(p,group){
  if(description){
    const section=textNode('section','','velo-description');
    section.append(textNode('h3','Opis odcinka'));
-   const paragraph=textNode('p',description);
-   paragraph.style.whiteSpace='pre-line';
+   const paragraph=linkedDescription(description);
    section.append(paragraph);
    extra.append(section);
  } else extra.append(textNode('p','Brak opisu w danych źródłowych.'));
