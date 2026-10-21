@@ -5,6 +5,8 @@ Bez pliku: pobranie publicznej mapy Google My Maps (jeżeli eksport jest dostęp
 Importuje folder główny oraz "Pozostała infrastruktura rowerowa"; pozostałe foldery wykluczone.
 """
 import io, json, sys, zipfile, urllib.request, xml.etree.ElementTree as ET
+from html.parser import HTMLParser
+from html import unescape
 from pathlib import Path
 
 MID='16UMazp6pz-IQxUXpUl1c3suxCMHPcpFE'
@@ -13,6 +15,25 @@ NS={'k':'http://www.opengis.net/kml/2.2'}
 TARGET=Path(__file__).resolve().parents[1]/'data'/'velomalopolska.geojson'
 FOLDERS=('Stan prac/rodzaj nawierzchni', 'Pozostała infrastruktura rowerowa')
 COLOR_CATEGORY={'000000':'ddr','bdbdbd':'droga','ff5252':'inna','ffd600':'budowa','673ab7':'plan'}
+
+class TextFromKML(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.items=[]
+    def handle_starttag(self,tag,attrs):
+        if tag in ('br','p','div','li','tr'):
+            self.items.append('\n')
+    def handle_endtag(self,tag):
+        if tag in ('p','div','li','tr'):
+            self.items.append('\n')
+    def handle_data(self,data):
+        self.items.append(data)
+
+def clean_description(raw):
+    parser=TextFromKML()
+    parser.feed(unescape(raw or ''))
+    lines=[' '.join(line.split()) for line in ''.join(parser.items).splitlines()]
+    return '\n'.join(line for line in lines if line and not (line.endswith(':') and line.lower().rstrip(':') in {'id','typ trasy','nazwa','powiat','przebieg','dlugosc','atrakcje','nawierzch','przewyzsz','czas prze','stopien t','jpt_sjr_ko','jpt_powier','jpt_kod_je','jpt_nazwa_','jpt_jor_id','wersja_od','wazny_od'})).strip()
 
 def load():
     if len(sys.argv)>1:raw=Path(sys.argv[1]).read_bytes()
@@ -50,6 +71,7 @@ def convert(root):
         current=0
         for pm in folders[folder_name].findall('./k:Placemark',NS):
             name=pm.findtext('k:name',default='',namespaces=NS)
+            description=clean_description(pm.findtext('k:description',default='',namespaces=NS))
             ref=pm.findtext('k:styleUrl',default='',namespaces=NS)
             parts=ref.lstrip('#').split('-')
             src=parts[1].lower() if len(parts)>=3 and parts[0]=='line' else ''
@@ -68,7 +90,7 @@ def convert(root):
                     print('UWAGA: pominięta geometria z mniej niż 2 punktami:',name)
                     continue
                 features.append({'type':'Feature','properties':{
-                    'name':name,'category':category,'source_color':'#'+src,
+                    'name':name,'description':description,'category':category,'source_color':'#'+src,
                     'source_style':ref,'source_folder':folder_name,
                     'source':'VeloMałopolska / Google My Maps'
                 },'geometry':{'type':'LineString','coordinates':coords}})

@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const cfg=window.DAROPLAN_CONFIG;
-console.info('[DaRoPlan] Wersja 0.7.2-dev — VeloMałopolska');
+console.info('[DaRoPlan] Wersja 0.7.3-dev — VeloMałopolska');
 const $=id=>document.getElementById(id);
 const ui={menu:$('layersMenu'),panel:$('infoPanel'),content:$('infoContent'),results:$('searchResults'),input:$('searchInput')};
 // Kanoniczny adres bez index.html — zachowujemy hash Mapboxa i pozostałe parametry.
@@ -81,13 +81,21 @@ add('supports',circle('supports','dp-ztp',null,'#00a676',['==',['get','typ'],'po
 add('repairs',circle('repairs','dp-ztp',null,'#0e81a6',['==',['get','typ'],'stacja naprawy rowerów']),'repairs');
 add('dasie',circle('dasie','dp-dasie','dasie_2.3','#dc2424'),'dasie');
 // Siec regionalna: wlasna symbolika DaRoPlanu, a nie kolory Google.
-const veloStyles={ddr:['#2456cb',null],droga:['#658b78',null],inna:['#b78355',null],budowa:['#e5a32a',[3,1.6]],plan:['#9674b7',[1.5,2]],nieokreslone:['#8a7596',[1,2]]};
-for(const [cat,[color,dash]] of Object.entries(veloStyles)){
+// VeloM: czytelne linie przy oddaleniu, bez dominowania przy zoomie 16.
+// Droga w ruchu ogólnym: identyczny kolor i kreskowanie jak kontraruch w Krakowie.
+const veloStyles={
+ ddr:{color:'#2456cb',dash:null,width:[3.3,3.3,3.2,3.25]},
+ droga:{color:'#159924',dash:[2.5,1.5],width:[3.3,3.3,3.2,3.25]},
+ inna:{color:'#e32626',dash:[2,1.6],width:[2.5,2.5,2.4,2.6]},
+ budowa:{color:'#f3a414',dash:[3,1.6],width:[3.3,3.3,3.2,3.7]},
+ plan:{color:'#9848ce',dash:[.5,1.6],width:[3.3,3.3,3.2,3.25]},
+ nieokreslone:{color:'#7d42b3',dash:[1,2],width:[2.8,2.8,2.8,3.0]}
+};
+for(const [cat,style] of Object.entries(veloStyles)){
  const group='velo-'+cat;
- const layer=line(group,'dp-velo',null,color,['==',['get','category'],cat],dash,3.4);
- // Regionalna sieć ma pozostać czytelna nawet przy oddalonej mapie.
- layer.paint['line-width']=['interpolate',['linear'],['zoom'],9,2.0,11,3.3,13.5,5.5,16,8.0];
- layer.paint['line-opacity']=.95;
+ const layer=line(group,'dp-velo',null,style.color,['==',['get','category'],cat],style.dash,3.4);
+ layer.paint['line-width']=['interpolate',['linear'],['zoom'],9,style.width[0],11,style.width[1],13.5,style.width[2],16,style.width[3]];
+ layer.paint['line-opacity']=.96;
  add(group,layer,group);
 }
 styleLayer('studium24','study','dp-study','study');
@@ -201,7 +209,25 @@ function closePanel(){clearFeatureHighlight();ui.panel.classList.add('hidden');d
 function showPanel(title,kind,properties={},extra){ui.content.replaceChildren();ui.content.append(textNode('div',kind,'tag'),textNode('h2',title));if(extra)ui.content.append(extra);for(const [k,v] of Object.entries(properties)){if(v===null||v===undefined||v===''||typeof v==='object')continue;const wrap=textNode('div','','property');wrap.append(textNode('b',k),textNode('span',String(v).slice(0,500)));ui.content.append(wrap)}openPanel('content');}
 function link(text,url){const a=textNode('a',text,'action');a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a}
 function toast(message){$('toast').textContent=message;$('toast').classList.remove('hidden');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.add('hidden'),3200)}
-function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.id));if(!f)return;highlightFeature(f);const group=layerIndex.get(f.layer.id);const p=f.properties||{};const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group.startsWith('velo-'))extra.append(textNode('p','Regionalna trasa VeloMałopolska; kategoria: '+String(p.category||'')));if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'&&p.tweet_id){const tweetId=String(p.tweet_id).trim();extra.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));const embed=document.createElement('div');embed.className='tweet-embed';extra.append(embed);showPanel(label,'DASIE — archiwum',p,extra);renderTweet(tweetId,embed);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
+function showVeloFeature(p,group){
+ const name=String(p.name||'Odcinek VeloMałopolska');
+ const names={ddr:'DDR / CPR',droga:'Droga w ruchu ogólnym',inna:'Inna nawierzchnia — uwaga',budowa:'W budowie',plan:'Planowane',nieokreslone:'Do weryfikacji'};
+ const category=names[p.category]||'VeloMałopolska';
+ const extra=document.createElement('div');
+ const description=String(p.description||'').trim();
+ if(description){
+   const section=textNode('section','','velo-description');
+   section.append(textNode('h3','Opis odcinka'));
+   const paragraph=textNode('p',description);
+   paragraph.style.whiteSpace='pre-line';
+   section.append(paragraph);
+   extra.append(section);
+ } else extra.append(textNode('p','Brak opisu w danych źródłowych.'));
+ extra.append(textNode('p','Źródło: VeloMałopolska / Google My Maps','source-credit'));
+ showPanel(name,category,{},extra);
+}
+function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.id));if(!f)return;highlightFeature(f);const group=layerIndex.get(f.layer.id);const p=f.properties||{};if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'&&p.tweet_id){const tweetId=String(p.tweet_id).trim();extra.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));const embed=document.createElement('div');embed.className='tweet-embed';extra.append(embed);showPanel(label,'DASIE — archiwum',p,extra);renderTweet(tweetId,embed);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
+
 function renderTweet(id,container){
   const embed=()=>{if(!window.twttr?.widgets?.createTweet)return false;
     window.twttr.widgets.createTweet(id,container,{lang:'pl',dnt:true,align:'center'}).then(node=>{if(!node)container.append(textNode('p','Podgląd niedostępny — użyj linku do oryginalnego wpisu.'));}).catch(()=>container.append(textNode('p','Nie udało się osadzić wpisu. Link powyżej pozostaje dostępny.')));return true;};
@@ -220,7 +246,7 @@ function renderControls(){
  const legend={suggestions:['#e32626','dotted'],construction:['#ee9a12','dashed'],tempoLines:['#f5d51b',null],tempo20:['#ffb767',null],counters:['#f47a20',null],dasie:['#dc2424',null]};
  for(const layer of layerGroups){if(layer.id==='infra')continue;const detail=legend[layer.id];box.append(row(layer.id,layer.title,detail?swatch(...detail):null));if(layer.id==='velo'){
  const wrap=document.createElement('div');wrap.className='infra-children';
- for(const [id,title,color,dash] of [['velo-ddr','DDR / CPR','#2456cb',null],['velo-droga','Droga w ruchu ogólnym','#658b78',null],['velo-inna','Inna nawierzchnia','#b78355',null],['velo-budowa','W budowie','#e5a32a','dashed'],['velo-plan','Planowane','#9674b7','dotted'],['velo-nieokreslone','Inne oznaczenia — do weryfikacji','#8a7596','dotted']])wrap.append(row(id,title,swatch(color,dash)));
+ for(const [id,title,color,dash] of [['velo-ddr','DDR / CPR','#2456cb',null],['velo-droga','Droga w ruchu ogólnym','#159924','dashed'],['velo-inna','Inna nawierzchnia — uwaga','#e32626','dashed'],['velo-budowa','W budowie','#f3a414','dashed'],['velo-plan','Planowane','#9848ce','dotted'],['velo-nieokreslone','Inne oznaczenia — do weryfikacji','#7d42b3','dotted']])wrap.append(row(id,title,swatch(color,dash)));
  box.append(wrap);
  const note=textNode('div','Włączenie VeloMałopolski ukrywa sieć Krakowa. Możesz ją ponownie włączyć powyżej.','fixed-layer-note');box.append(note);
  }}
