@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const cfg=window.DAROPLAN_CONFIG;
-console.info('[DaRoPlan] Wersja 0.8.1-dev — audyty ZTP bezpośrednio');
+console.info('[DaRoPlan] Wersja 0.8.2-dev — audyty przez proxy PHP');
 const $=id=>document.getElementById(id);
 const ui={menu:$('layersMenu'),panel:$('infoPanel'),content:$('infoContent'),results:$('searchResults'),input:$('searchInput')};
 // Kanoniczny adres bez index.html — zachowujemy hash Mapboxa i pozostałe parametry.
@@ -38,7 +38,7 @@ const sources={
  audytyOtwarte:{type:'geojson',data:{type:'FeatureCollection',features:[]}},
  audytyZamkniete:{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterRadius:45,clusterMaxZoom:13}
 };
-// Jeden zewnetrzny GeoJSON ZTP; bez zapisywania kopii na serwerze lub GitHubie.
+// GeoJSON ZTP przez proxy PHP w tej samej domenie; bez CORS i bez workflow GitHub.
 let audytyData=null;
 function updateAuditSources(){
  if(!map||!audytyData)return;
@@ -49,7 +49,7 @@ function updateAuditSources(){
 }
 async function loadAudytyDirect(){
  try{
-  const response=await fetch('https://ztp.krakow.pl/dane/audyty.geojson',{mode:'cors',cache:'no-store'});
+  const response=await fetch('api/audyty.php',{cache:'no-store'});
   if(!response.ok)throw Error('HTTP '+response.status);
   const geo=await response.json();
   if(geo.type!=='FeatureCollection'||!Array.isArray(geo.features))throw Error('Niepoprawny GeoJSON');
@@ -64,8 +64,8 @@ async function loadAudytyDirect(){
   }
   audytyData={open:{type:'FeatureCollection',features:opened},closed:{type:'FeatureCollection',features:closed}};
   updateAuditSources();
-  console.info('[DaRoPlan] Audyty bezpośrednio z ZTP:',opened.length,'otwartych,',closed.length,'zamkniętych');
- }catch(e){console.warn('[DaRoPlan] Bezpośrednie pobieranie audytów ZTP nieudane (możliwy CORS)',e);toast('Nie udało się pobrać audytów ZTP — sprawdź CORS serwera.');}
+  console.info('[DaRoPlan] Audyty przez proxy ZTP:',opened.length,'otwartych,',closed.length,'zamkniętych');
+ }catch(e){console.warn('[DaRoPlan] Pobieranie audytów przez proxy ZTP nieudane',e);toast('Nie udało się pobrać audytów ZTP przez hosting — sprawdź api/audyty.php.');}
 }
 const layerGroups=[
  {id:'infra',title:'Infrastruktura rowerowa'}, {id:'suggestions',title:'Sugerowane trasy w ruchu ogólnym'},
@@ -114,6 +114,13 @@ add('shelters',circle('shelters','dp-ztp',null,'#c026d3',['==',['get','typ'],'wi
 add('supports',circle('supports','dp-ztp',null,'#00a676',['==',['get','typ'],'podpórka']),'supports');
 add('repairs',circle('repairs','dp-ztp',null,'#0e81a6',['==',['get','typ'],'stacja naprawy rowerów']),'repairs');
 add('dasie',circle('dasie','dp-dasie','dasie_2.3','#dc2424'),'dasie');
+// Objazdy wstawione PRZED pozostałymi liniami VeloM, aby nie zasłaniać sieci.
+add('velo-objazdy-linie',{
+ id:'dp-velo-objazdy-linie',type:'line',source:'dp-veloObjazdy',filter:['==',['get','kind'],'line'],
+ layout:{'line-cap':'round','line-join':'round'},
+ paint:{'line-color':'#ff8c24','line-opacity':.95,
+  'line-width':['interpolate',['linear'],['zoom'],9,1.6,11,1.7,13.5,1.9,16,2.3]}
+},'velo-objazdy');
 // Siec regionalna: wlasna symbolika DaRoPlanu, a nie kolory Google.
 // VeloM: czytelne linie przy oddaleniu, bez dominowania przy zoomie 16.
 // Droga w ruchu ogólnym: identyczny kolor i kreskowanie jak kontraruch w Krakowie.
@@ -133,8 +140,6 @@ for(const [cat,style] of Object.entries(veloStyles)){
  add(group,layer,group);
 }
 
-// Objazdy są osobną podwarstwą VeloM. Nie przypisujemy im automatycznie statusu 'aktualne'.
-add('velo-objazdy-linie',line('velo-objazdy-linie','dp-veloObjazdy',null,'#ff8c24',['==',['get','kind'],'line'],[1.4,1.4],3.4),'velo-objazdy');
 add('velo-objazdy-punkty',{
  id:'dp-velo-objazdy-punkty',type:'circle',source:'dp-veloObjazdy',filter:['==',['get','kind'],'point'],
  paint:{'circle-radius':['interpolate',['linear'],['zoom'],9,4.5,13,6,16,8],
@@ -338,7 +343,7 @@ function renderControls(){
  for(const layer of layerGroups){if(layer.id==='infra')continue;const detail=legend[layer.id];box.append(row(layer.id,layer.title,detail?swatch(...detail):null));if(layer.id==='velo'){
  const wrap=document.createElement('div');wrap.className='infra-children';
  for(const [id,title,color,dash] of [['velo-ddr','DDR / CPR','#2456cb',null],['velo-droga','Droga w ruchu ogólnym','#159924','dashed'],['velo-inna','Inna nawierzchnia — uwaga','#e32626','dashed'],['velo-budowa','W budowie','#f3a414','dashed'],['velo-plan','Planowane','#9848ce','dotted'],['velo-nieokreslone','Inne oznaczenia — do weryfikacji','#7d42b3','dotted']])wrap.append(row(id,title,swatch(color,dash)));
- wrap.append(row('velo-objazdy','Objazdy / utrudnienia',swatch('#ff8c24','dashed')));
+ wrap.append(row('velo-objazdy','Objazdy / utrudnienia',swatch('#ff8c24')));
  box.append(wrap);
  const note=textNode('div','Włączenie VeloMałopolski ukrywa sieć Krakowa. Możesz ją ponownie włączyć powyżej.','fixed-layer-note');box.append(note);
  }}
