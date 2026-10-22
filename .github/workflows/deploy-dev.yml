@@ -98,6 +98,7 @@ jobs:
             -P "$PORT" \
             -r \
             index.html css js data \
+            index.html css js data api \
             "$USER@$HOST:rowerowy.otwartyplan.org/public_html/mapa-dev/"
 
           echo "PLIKI PRZESLANE"
