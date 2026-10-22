@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const cfg=window.DAROPLAN_CONFIG;
-console.info('[DaRoPlan] Wersja 0.7.3-dev — VeloMałopolska');
+console.info('[DaRoPlan] Wersja 0.8.1-dev — audyty ZTP bezpośrednio');
 const $=id=>document.getElementById(id);
 const ui={menu:$('layersMenu'),panel:$('infoPanel'),content:$('infoContent'),results:$('searchResults'),input:$('searchInput')};
 // Kanoniczny adres bez index.html — zachowujemy hash Mapboxa i pozostałe parametry.
@@ -35,9 +35,38 @@ const sources={
  residences:{type:'vector',url:'mapbox://ibikekrk.cm47h9e3y0myo1ut9x4uuehes-1jj7n'},
  velo:{type:'geojson',data:'data/velomalopolska.geojson'},
  veloObjazdy:{type:'geojson',data:'data/velo-objazdy.geojson'},
- audytyOtwarte:{type:'geojson',data:'data/audyty-otwarte.geojson'},
- audytyZamkniete:{type:'geojson',data:'data/audyty-zamkniete.geojson',cluster:true,clusterRadius:45,clusterMaxZoom:13}
+ audytyOtwarte:{type:'geojson',data:{type:'FeatureCollection',features:[]}},
+ audytyZamkniete:{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterRadius:45,clusterMaxZoom:13}
 };
+// Jeden zewnetrzny GeoJSON ZTP; bez zapisywania kopii na serwerze lub GitHubie.
+let audytyData=null;
+function updateAuditSources(){
+ if(!map||!audytyData)return;
+ const opened=map.getSource('dp-audytyOtwarte');
+ const closed=map.getSource('dp-audytyZamkniete');
+ if(opened)opened.setData(audytyData.open);
+ if(closed)closed.setData(audytyData.closed);
+}
+async function loadAudytyDirect(){
+ try{
+  const response=await fetch('https://ztp.krakow.pl/dane/audyty.geojson',{mode:'cors',cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const geo=await response.json();
+  if(geo.type!=='FeatureCollection'||!Array.isArray(geo.features))throw Error('Niepoprawny GeoJSON');
+  const opened=[],closed=[];
+  for(const f of geo.features){
+   if(f?.geometry?.type!=='Point'||!Array.isArray(f.geometry.coordinates))continue;
+   const state=String(f.properties?.categories||'').toLocaleLowerCase('pl').trim();
+   const properties={...f.properties};delete properties.address;
+   const clean={type:'Feature',geometry:f.geometry,properties};
+   if(state.includes('otwarte'))opened.push(clean);
+   else if(state.includes('zamknięte')||state.includes('zamkniete'))closed.push(clean);
+  }
+  audytyData={open:{type:'FeatureCollection',features:opened},closed:{type:'FeatureCollection',features:closed}};
+  updateAuditSources();
+  console.info('[DaRoPlan] Audyty bezpośrednio z ZTP:',opened.length,'otwartych,',closed.length,'zamkniętych');
+ }catch(e){console.warn('[DaRoPlan] Bezpośrednie pobieranie audytów ZTP nieudane (możliwy CORS)',e);toast('Nie udało się pobrać audytów ZTP — sprawdź CORS serwera.');}
+}
 const layerGroups=[
  {id:'infra',title:'Infrastruktura rowerowa'}, {id:'suggestions',title:'Sugerowane trasy w ruchu ogólnym'},
  {id:'construction',title:'W budowie'}, {id:'tempoLines',title:'Tempo 30 — ulice'}, {id:'tempo20',title:'Tempo 20 — strefy zamieszkania'}, {id:'counters',title:'Liczniki rowerowe'},
@@ -57,6 +86,7 @@ const fixedGroups=new Set(['borders']);
 function visibleGroup(group){return fixedGroups.has(group)||(group.startsWith('velo-')?selection.has('velo')&&selection.has(group):selection.has(group))}
 function styleLayer(id,newId,src,group){const template=styleLayers.find(l=>l.id===id);if(!template)return;const layer=JSON.parse(JSON.stringify(template));layer.id='dp-'+newId;layer.source=src;if(sourceLayers[group])layer['source-layer']=sourceLayers[group];layer.layout=layer.layout||{};layer.layout.visibility='visible';add(id,layer,group);}
 function createLayers(){layerIndex.clear();for(const [id,obj] of Object.entries(sources)){if(!map.getSource('dp-'+id))try{map.addSource('dp-'+id,obj)}catch(e){console.warn('Nie można dodać źródła',id,e)}}
+updateAuditSources();
 // Tempo 20/30 rysujemy pierwsze, pod infrastrukturą rowerową.
 // Atrybut maxspeed może mieć w danych postać liczby albo tekstu.
 if(sourceLayers.tempoLines){
@@ -317,7 +347,7 @@ function renderControls(){
 // Wyszukiwanie lokalizacji Mapbox Geocoding. Własny indeks treści dodamy w następnym etapie.
 async function search(query){if(!query.trim())return;ui.results.classList.remove('hidden');ui.results.replaceChildren(textNode('p','Wyszukiwanie miejsc…'));const controller=new AbortController();if(search.previous)search.previous.abort();search.previous=controller;try{const url='https://api.mapbox.com/geocoding/v5/mapbox.places/'+encodeURIComponent(query)+'.json?access_token='+encodeURIComponent(cfg.token)+'&country=pl&language=pl&limit=6&proximity=19.94,50.06';const response=await fetch(url,{signal:controller.signal});if(!response.ok)throw Error('HTTP '+response.status);const data=await response.json();ui.results.replaceChildren();if(!data.features?.length){ui.results.append(textNode('p','Nie znaleziono lokalizacji.'));return}for(const f of data.features){const btn=document.createElement('button');btn.append(textNode('strong',f.text||'Lokalizacja'),textNode('small',f.place_name||''));btn.addEventListener('click',()=>{ui.results.classList.add('hidden');ui.input.value=f.place_name||f.text;map.flyTo({center:f.center,zoom:Math.max(map.getZoom(),15),essential:true});const nearby=textNode('p','Wybierz obiekt na mapie, aby zobaczyć jego dane. Automatyczne wyszukiwanie powiązanych treści w promieniu miejsca jest kolejnym etapem.');showPanel(f.text||'Lokalizacja','Wynik wyszukiwania',{},nearby)});ui.results.append(btn)}}catch(e){if(e.name!=='AbortError'){ui.results.replaceChildren(textNode('p','Nie udało się wyszukać. Sprawdź dostęp geokodowania dla tokenu Mapbox.'))}}}
 function hideLocation(){geoRequest++;if(locationMarker){locationMarker.remove();locationMarker=null;}$('locate').classList.remove('is-active');$('locate').setAttribute('aria-pressed','false');$('locate').title='Pokaż moją lokalizację'}
-function init(){if(!window.mapboxgl){$('status').textContent='Nie załadowano Mapbox GL JS';toast('Nie udało się załadować Mapbox GL JS');return}mapboxgl.accessToken=cfg.token;map=new mapboxgl.Map({container:'map',style:cfg.basemaps.original,center:cfg.home,zoom:cfg.zoom,minZoom:9,maxZoom:16,hash:true,attributionControl:true});map.addControl(new mapboxgl.NavigationControl({showCompass:true}),'bottom-right');map.addControl(new mapboxgl.ScaleControl({unit:'metric',maxWidth:90}),'bottom-left');map.on('style.load',()=>{styleRevision++;restoreThematicLayers()});map.on('load',restoreThematicLayers);map.on('error',e=>console.warn('[DaRoPlan Mapbox]',e.error||e));attachClicks();
+function init(){if(!window.mapboxgl){$('status').textContent='Nie załadowano Mapbox GL JS';toast('Nie udało się załadować Mapbox GL JS');return}mapboxgl.accessToken=cfg.token;map=new mapboxgl.Map({container:'map',style:cfg.basemaps.original,center:cfg.home,zoom:cfg.zoom,minZoom:9,maxZoom:16,hash:true,attributionControl:true});map.addControl(new mapboxgl.NavigationControl({showCompass:true}),'bottom-right');map.addControl(new mapboxgl.ScaleControl({unit:'metric',maxWidth:90}),'bottom-left');map.on('style.load',()=>{styleRevision++;restoreThematicLayers()});map.on('load',restoreThematicLayers);map.on('error',e=>console.warn('[DaRoPlan Mapbox]',e.error||e));attachClicks();loadAudytyDirect();
 Promise.all([detectSourceLayers(),fetch('data/studio-layers.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Brak pliku stylu');return r.json()})]).then(([,data])=>{styleLayers=data;sourcesReady=true;restoreThematicLayers()}).catch(e=>{console.error('[DaRoPlan] Konfiguracja:',e);toast('Nie wczytano konfiguracji Studium / SIM: '+e.message)});
 $('layersBtn').addEventListener('click',()=>{renderControls();openPanel('layers')});$('infoClose').onclick=closePanel;$('panelExpand').onclick=()=>{const expanded=ui.panel.classList.toggle('expanded');$('panelExpand').setAttribute('aria-expanded',String(expanded));$('panelExpand').textContent=expanded?'⌄':'⌃'};document.querySelectorAll('[data-base]').forEach(el=>el.addEventListener('click',()=>setBase(el.dataset.base)));document.querySelectorAll('[data-mode]').forEach(el=>el.addEventListener('click',()=>{configureModes(el.dataset.mode);renderControls()}));$('searchForm').addEventListener('submit',e=>{e.preventDefault();search(ui.input.value)});$('brand').onclick=()=>showPanel('DaRoPlan 2.0','Fundacja Otwarty Plan',{},textNode('p','Mapa i wiedza o ruchu rowerowym w Krakowie. To testowa wersja nowego interfejsu.'));$('locate').onclick=()=>{if(locationMarker){hideLocation();return}if(!navigator.geolocation)return toast('Geolokalizacja niedostępna');const requestId=++geoRequest;navigator.geolocation.getCurrentPosition(p=>{if(requestId!==geoRequest)return;const coords=[p.coords.longitude,p.coords.latitude];if(!locationMarker){const dot=document.createElement('div');dot.className='user-location-dot';dot.title='Twoja lokalizacja';locationMarker=new mapboxgl.Marker({element:dot,anchor:'center'}).setLngLat(coords).addTo(map)}else{locationMarker.setLngLat(coords)}$('locate').classList.add('is-active');$('locate').setAttribute('aria-pressed','true');$('locate').title='Ukryj moją lokalizację';map.flyTo({center:coords,zoom:Math.max(map.getZoom(),15),essential:true});},()=>toast('Nie udało się uzyskać lokalizacji. Sprawdź uprawnienia i HTTPS.'),{enableHighAccuracy:true,timeout:12000,maximumAge:30000})};$('share').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);toast('Skopiowano link do mapy')}catch(e){toast('Adres mapy: '+location.href)}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){ui.results.classList.add('hidden');hideLocation();closePanel()}});renderControls();}
 init();
