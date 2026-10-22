@@ -19,15 +19,16 @@ if (is_string($cached) && $valid($cached) && time() - (int)filemtime($cache) < $
 $remote = false;
 if (function_exists('curl_init')) {
     $ch = curl_init($url);
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_CONNECTTIMEOUT=>6,
-      CURLOPT_TIMEOUT=>18, CURLOPT_FOLLOWLOCATION=>false, CURLOPT_SSL_VERIFYPEER=>true,
-      CURLOPT_USERAGENT=>'DaRoPlan/0.8.2 (https://rowerowy.otwartyplan.org/mapa/)']);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_CONNECTTIMEOUT=>8,
+      CURLOPT_TIMEOUT=>22, CURLOPT_FOLLOWLOCATION=>true, CURLOPT_MAXREDIRS=>3,
+      CURLOPT_SSL_VERIFYPEER=>true, CURLOPT_SSL_VERIFYHOST=>2, CURLOPT_ENCODING=>'',
+      CURLOPT_USERAGENT=>'Mozilla/5.0 (compatible; DaRoPlan/0.8; +https://rowerowy.otwartyplan.org/)']);
     $result = curl_exec($ch);
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     if ($status === 200 && is_string($result)) $remote = $result;
 } else {
-    $ctx = stream_context_create(['http'=>['timeout'=>18,'follow_location'=>0,
+    $ctx = stream_context_create(['http'=>['timeout'=>22,'follow_location'=>1,'max_redirects'=>3,
       'header'=>"User-Agent: DaRoPlan/0.8.2\r\n"], 'ssl'=>['verify_peer'=>true,'verify_peer_name'=>true]]);
     $remote = @file_get_contents($url, false, $ctx);
 }
