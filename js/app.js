@@ -33,7 +33,10 @@ const sources={
  sim:{type:'vector',url:'mapbox://ibikekrk.cmjbmirn00dxw1mk2dxu4b3l4-2aqi1'},
  borders:{type:'vector',url:'mapbox://ibikekrk.ckak3ncy600m522o196zec8x9-83qbh'},
  residences:{type:'vector',url:'mapbox://ibikekrk.cm47h9e3y0myo1ut9x4uuehes-1jj7n'},
- velo:{type:'geojson',data:'data/velomalopolska.geojson'}
+ velo:{type:'geojson',data:'data/velomalopolska.geojson'},
+ veloObjazdy:{type:'geojson',data:'data/velo-objazdy.geojson'},
+ audytyOtwarte:{type:'geojson',data:'data/audyty-otwarte.geojson'},
+ audytyZamkniete:{type:'geojson',data:'data/audyty-zamkniete.geojson',cluster:true,clusterRadius:45,clusterMaxZoom:13}
 };
 const layerGroups=[
  {id:'infra',title:'Infrastruktura rowerowa'}, {id:'suggestions',title:'Sugerowane trasy w ruchu ogólnym'},
@@ -43,6 +46,7 @@ const layerGroups=[
  {id:'dasie',title:'DASIE — archiwum'}, {id:'study',title:'Studium tras rowerowych'},
  {id:'sim',title:'Trasy SIM — koncepcja'},
  {id:'velo',title:'VeloMałopolska'},
+ {id:'audyty',title:'Audyty rowerowe ZTP'},
  {id:'residences',title:'Zameldowania'}
 ];
 function line(id,source,sourceLayer,color,filter,dash,width=3){const layer={id:'dp-'+id,type:'line',source,paint:{'line-color':color,'line-width':['interpolate',['linear'],['zoom'],9,Math.max(.65,width*.30),11,Math.max(.85,width*.42),13.5,width*.75,16,width*1.30],'line-opacity':.93}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;if(dash)layer.paint['line-dasharray']=dash;layer.layout={'line-cap':'round','line-join':'round'};return layer;}
@@ -98,6 +102,34 @@ for(const [cat,style] of Object.entries(veloStyles)){
  layer.paint['line-opacity']=.96;
  add(group,layer,group);
 }
+
+// Objazdy są osobną podwarstwą VeloM. Nie przypisujemy im automatycznie statusu 'aktualne'.
+add('velo-objazdy-linie',line('velo-objazdy-linie','dp-veloObjazdy',null,'#ff8c24',['==',['get','kind'],'line'],[1.4,1.4],3.4),'velo-objazdy');
+add('velo-objazdy-punkty',{
+ id:'dp-velo-objazdy-punkty',type:'circle',source:'dp-veloObjazdy',filter:['==',['get','kind'],'point'],
+ paint:{'circle-radius':['interpolate',['linear'],['zoom'],9,4.5,13,6,16,8],
+ 'circle-color':'#fc8b24','circle-stroke-color':'#fff','circle-stroke-width':2}
+},'velo-objazdy');
+// Zamknięte audyty mogą być klastrowane; otwarte zawsze są pojedynczymi punktami.
+add('audyty-zamkniete-klastry',{
+ id:'dp-audyty-zamkniete-klastry',type:'circle',source:'dp-audytyZamkniete',filter:['has','point_count'],
+ paint:{'circle-color':'#818a94','circle-radius':['step',['get','point_count'],15,20,20,100,25],
+ 'circle-stroke-color':'#fff','circle-stroke-width':2}
+},'audyty');
+add('audyty-zamkniete-liczba',{
+ id:'dp-audyty-zamkniete-liczba',type:'symbol',source:'dp-audytyZamkniete',filter:['has','point_count'],
+ layout:{'text-field':['to-string',['get','point_count_abbreviated']],'text-font':['Open Sans Bold','Arial Unicode MS Bold'],'text-size':12},
+ paint:{'text-color':'#fff'}
+},'audyty');
+add('audyty-zamkniete-punkty',{
+ id:'dp-audyty-zamkniete-punkty',type:'circle',source:'dp-audytyZamkniete',filter:['!',['has','point_count']],
+ paint:{'circle-radius':6,'circle-color':'#9299a2','circle-stroke-color':'#fff','circle-stroke-width':2}
+},'audyty');
+// Otwarte na wierzchu (także wtedy, kiedy pokrywają się z zamkniętymi).
+add('audyty-otwarte-punkty',{
+ id:'dp-audyty-otwarte-punkty',type:'circle',source:'dp-audytyOtwarte',
+ paint:{'circle-radius':7,'circle-color':'#1ca65b','circle-stroke-color':'#fff','circle-stroke-width':2}
+},'audyty');
 styleLayer('studium24','study','dp-study','study');
 if(sourceLayers.sim){
   // Trasy SIM mają różne identyfikatory source-layer zależnie od wersji tilesetu.
@@ -255,14 +287,14 @@ function showVeloFeature(p,group){
  extra.append(textNode('p','Źródło: VeloMałopolska / Google My Maps','source-credit'));
  showPanel(name,category,{},extra);
 }
-function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.id));if(!f)return;highlightFeature(f);const group=layerIndex.get(f.layer.id);const p=f.properties||{};if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'&&p.tweet_id){const tweetId=String(p.tweet_id).trim();extra.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));const embed=document.createElement('div');embed.className='tweet-embed';extra.append(embed);showPanel(label,'DASIE — archiwum',p,extra);renderTweet(tweetId,embed);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
+function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.id));if(!f)return;highlightFeature(f);const group=layerIndex.get(f.layer.id);const p=f.properties||{};if(group==='velo-objazdy'){const extra=document.createElement('div');if(p.description)extra.append(linkedDescription(String(p.description)));extra.append(textNode('p','Uwaga: wpis może być archiwalny. Zweryfikuj bieżącą sytuację.','source-credit'));showPanel(p.name||'Objazd / utrudnienie','VeloM — objazdy i utrudnienia',{},extra);return;}if(group==='audyty'){const extra=document.createElement('div');if(p.publish_date)extra.append(textNode('p','Opublikowano: '+String(p.publish_date).slice(0,10)));if(p.modified_date)extra.append(textNode('p','Zmodyfikowano: '+String(p.modified_date).slice(0,10)));if(typeof p.link==='string'&&/^https:\/\//i.test(p.link))extra.append(link('Otwórz audyt ZTP ↗',p.link));showPanel(p.title||'Audyt rowerowy',p.categories||'Audyt ZTP',{},extra);return;}if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'&&p.tweet_id){const tweetId=String(p.tweet_id).trim();extra.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));const embed=document.createElement('div');embed.className='tweet-embed';extra.append(embed);showPanel(label,'DASIE — archiwum',p,extra);renderTweet(tweetId,embed);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
 
 function renderTweet(id,container){
   const embed=()=>{if(!window.twttr?.widgets?.createTweet)return false;
     window.twttr.widgets.createTweet(id,container,{lang:'pl',dnt:true,align:'center'}).then(node=>{if(!node)container.append(textNode('p','Podgląd niedostępny — użyj linku do oryginalnego wpisu.'));}).catch(()=>container.append(textNode('p','Nie udało się osadzić wpisu. Link powyżej pozostaje dostępny.')));return true;};
   if(embed())return;let tries=0;const interval=setInterval(()=>{if(!container.isConnected||embed()||++tries>40)clearInterval(interval);},200);
 }
-function attachClicks(){map.on('click',e=>{const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none');const feats=ids.length?map.queryRenderedFeatures(e.point,{layers:ids}):[];if(feats.length){selectedFeature({features:feats});return} });map.on('mousemove',e=>{const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none');map.getCanvas().style.cursor=ids.length&&map.queryRenderedFeatures(e.point,{layers:ids}).length?'pointer':''})}
+function attachClicks(){map.on('click',e=>{const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none');const feats=ids.length?map.queryRenderedFeatures(e.point,{layers:ids}):[];if(feats.length){const openAudit=feats.find(f=>f.layer.id==='dp-audyty-otwarte-punkty');if(openAudit){selectedFeature({features:[openAudit]});return;}const cluster=feats.find(f=>f.layer.id==='dp-audyty-zamkniete-klastry');if(cluster){const source=map.getSource('dp-audytyZamkniete');source.getClusterExpansionZoom(cluster.properties.cluster_id,(err,zoom)=>{if(!err)map.easeTo({center:cluster.geometry.coordinates,zoom:Math.min(zoom,16),duration:450})});return;}selectedFeature({features:feats});return} });map.on('mousemove',e=>{const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none');map.getCanvas().style.cursor=ids.length&&map.queryRenderedFeatures(e.point,{layers:ids}).length?'pointer':''})}
 function configureModes(next){if(selection.has('velo'))disableVelo();mode=next;document.querySelectorAll('[data-mode]').forEach(el=>el.classList.toggle('active',el.dataset.mode===next));if(next==='infra'){selection.clear();['infra','suggestions','construction',...infraCategories.map(x=>x.id)].forEach(x=>selection.add(x));syncVisibility();return}if(next==='ruch'){selection.clear();selection.add('counters');syncVisibility();showPanel('Ruch rowerowy','Moduł',{},(()=>{const d=document.createElement('div');d.append(textNode('p','Wybierz licznik na mapie. Zaawansowane porównania i profile dobowe pozostają w istniejącej aplikacji.'),link('Otwórz analizy pomiarów →',cfg.analysisUrl));return d})());return}if(next==='historia'){selection.clear();['infra','dasie',...infraCategories.map(x=>x.id)].forEach(x=>selection.add(x));syncVisibility();showPanel('Historia','Moduł',{},textNode('p','DASIE to archiwum wydarzeń. Suwak czasu infrastruktury dodamy po sprawdzeniu pól dat w danych źródłowych.'));return}if(next==='trasy'){selection.clear();['infra','suggestions','sim',...infraCategories.map(x=>x.id)].forEach(x=>selection.add(x));syncVisibility();return}showPanel('Więcej o DaRoPlanie','Projekt',{},textNode('p','Tu znajdą się landrynki, planer tras, materiały społeczności i dodatkowe narzędzia. W tej pierwszej wersji działają mapa, podkłady, warstwy i panel kontekstowy.'));}
 function renderControls(){
  const box=$('layerControls');box.replaceChildren();
@@ -276,6 +308,7 @@ function renderControls(){
  for(const layer of layerGroups){if(layer.id==='infra')continue;const detail=legend[layer.id];box.append(row(layer.id,layer.title,detail?swatch(...detail):null));if(layer.id==='velo'){
  const wrap=document.createElement('div');wrap.className='infra-children';
  for(const [id,title,color,dash] of [['velo-ddr','DDR / CPR','#2456cb',null],['velo-droga','Droga w ruchu ogólnym','#159924','dashed'],['velo-inna','Inna nawierzchnia — uwaga','#e32626','dashed'],['velo-budowa','W budowie','#f3a414','dashed'],['velo-plan','Planowane','#9848ce','dotted'],['velo-nieokreslone','Inne oznaczenia — do weryfikacji','#7d42b3','dotted']])wrap.append(row(id,title,swatch(color,dash)));
+ wrap.append(row('velo-objazdy','Objazdy / utrudnienia',swatch('#ff8c24','dashed')));
  box.append(wrap);
  const note=textNode('div','Włączenie VeloMałopolski ukrywa sieć Krakowa. Możesz ją ponownie włączyć powyżej.','fixed-layer-note');box.append(note);
  }}
