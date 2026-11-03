@@ -1,0 +1,482 @@
+name: Aktualizuj VeloMałopolska DEV
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub Actions używa UTC.
+    # 04:23 UTC = 05:23 w Polsce zimą / 06:23 latem.
+    - cron: "23 4 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: velom-data-dev
+  cancel-in-progress: false
+
+jobs:
+  update-velom-dev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Pobierz kod z gałęzi dev
+        uses: actions/checkout@v7
+        with:
+          ref: dev
+          persist-credentials: false
+
+      - name: Ustaw Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Wygeneruj aktualną główną warstwę VeloM
+        run: |
+          set -euo pipefail
+          test -f scripts/update_velo.py
+          python3 scripts/update_velo.py
+          test -s data/velomalopolska.geojson
+
+      - name: Wygeneruj aktualne objazdy i utrudnienia
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/update_objazdy.py <<'PY'
+          import io
+          import json
+          import urllib.request
+          import zipfile
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          MID = "16UMazp6pz-IQxUXpUl1c3suxCMHPcpFE"
+          URL = f"https://www.google.com/maps/d/kml?mid={MID}&forcekml=1"
+          NS = {"k": "http://www.opengis.net/kml/2.2"}
+          FOLDER = "Objazdy / utrudnienia"
+          TARGET = Path("data/velo-objazdy.geojson")
+
+          def parse_coords(text):
+              out = []
+              for token in (text or "").split():
+                  parts = token.split(",")
+                  if len(parts) < 2:
+                      continue
+                  lon = float(parts[0])
+                  lat = float(parts[1])
+                  if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+                      raise ValueError(f"Niepoprawne współrzędne: {lon}, {lat}")
+                  out.append([lon, lat])
+              return out
+
+          req = urllib.request.Request(
+              URL,
+              headers={"User-Agent": "Mozilla/5.0 (GitHub Actions VeloM DEV)"}
+          )
+          with urllib.request.urlopen(req, timeout=60) as response:
+              raw = response.read()
+
+          if len(raw) < 1000:
+              raise SystemExit("Pobrany plik z Google jest podejrzanie mały")
+
+          print("Pobrano z Google:", len(raw), "bajtów")
+
+          if raw[:2] == b"PK":
+              with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                  names = [n for n in z.namelist() if n.lower().endswith(".kml")]
+                  if not names:
+                      raise SystemExit("KMZ nie zawiera pliku KML")
+                  raw = z.read(names[0])
+
+          root = ET.fromstring(raw)
+
+          folder = None
+          for f in root.findall(".//k:Folder", NS):
+              if f.findtext("k:name", "", NS) == FOLDER:
+                  folder = f
+                  break
+
+          if folder is None:
+              raise SystemExit(f'Nie znaleziono folderu "{FOLDER}"')
+
+          features = []
+          line_count = 0
+          point_count = 0
+
+          for pm in folder.findall("./k:Placemark", NS):
+              name = pm.findtext("k:name", "", NS)
+              description = pm.findtext("k:description", "", NS)
+
+              for node in pm.findall(".//k:LineString/k:coordinates", NS):
+                  coords = parse_coords(node.text)
+                  if len(coords) < 2:
+                      continue
+                  features.append({
+                      "type": "Feature",
+                      "properties": {
+                          "name": name,
+                          "description": description,
+                          "kind": "line",
+                          "source": "VeloMałopolska / Google My Maps"
+                      },
+                      "geometry": {
+                          "type": "LineString",
+                          "coordinates": coords
+                      }
+                  })
+                  line_count += 1
+
+              for node in pm.findall(".//k:Point/k:coordinates", NS):
+                  coords = parse_coords(node.text)
+                  if not coords:
+                      continue
+                  features.append({
+                      "type": "Feature",
+                      "properties": {
+                          "name": name,
+                          "description": description,
+                          "kind": "point",
+                          "source": "VeloMałopolska / Google My Maps"
+                      },
+                      "geometry": {
+                          "type": "Point",
+                          "coordinates": coords[0]
+                      }
+                  })
+                  point_count += 1
+
+          # Ochrona przed pustym lub niepełnym eksportem.
+          if len(features) < 10:
+              raise SystemExit(
+                  f"Podejrzanie mało obiektów objazdów/utrudnień: {len(features)}"
+              )
+          if line_count < 1 or point_count < 1:
+              raise SystemExit(
+                  f"Brak oczekiwanych geometrii: linie={line_count}, punkty={point_count}"
+              )
+
+          data = {
+              "type": "FeatureCollection",
+              "features": features
+          }
+
+          TARGET.write_text(
+              json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n",
+              encoding="utf-8"
+          )
+
+          print(
+              "OBJAZDY:",
+              len(features),
+              "obiektów | linie:",
+              line_count,
+              "| punkty:",
+              point_count
+          )
+          PY
+
+          python3 /tmp/update_objazdy.py
+          test -s data/velo-objazdy.geojson
+
+      - name: Zweryfikuj oba GeoJSON-y
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json
+          import math
+          from collections import Counter
+          from pathlib import Path
+
+          ALLOWED = {"ddr", "droga", "inna", "budowa", "plan", "nieokreslone"}
+
+          def fail(msg):
+              raise SystemExit("BŁĄD WALIDACJI: " + msg)
+
+          def walk_coords(value):
+              if (
+                  isinstance(value, list)
+                  and len(value) >= 2
+                  and all(isinstance(x, (int, float)) for x in value[:2])
+              ):
+                  lon, lat = value[:2]
+                  if not (math.isfinite(lon) and math.isfinite(lat)):
+                      fail("NaN/Inf we współrzędnych")
+                  if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+                      fail(f"Współrzędne poza zakresem: {lon}, {lat}")
+                  return 1
+
+              if isinstance(value, list):
+                  return sum(walk_coords(x) for x in value)
+
+              return 0
+
+          def load(path):
+              try:
+                  data = json.loads(Path(path).read_text(encoding="utf-8"))
+              except Exception as e:
+                  fail(f"{path}: {e}")
+
+              if data.get("type") != "FeatureCollection":
+                  fail(f"{path}: root.type != FeatureCollection")
+
+              features = data.get("features")
+              if not isinstance(features, list) or not features:
+                  fail(f"{path}: brak features")
+
+              return features
+
+          main = load("data/velomalopolska.geojson")
+          if len(main) < 500:
+              fail(f"Główna warstwa ma podejrzanie mało obiektów: {len(main)}")
+
+          cats = Counter()
+          for i, feature in enumerate(main):
+              geom = feature.get("geometry") or {}
+              props = feature.get("properties") or {}
+
+              if geom.get("type") != "LineString":
+                  fail(f"Główna warstwa, feature #{i}: nie jest LineString")
+
+              if walk_coords(geom.get("coordinates")) < 2:
+                  fail(f"Główna warstwa, feature #{i}: za mało współrzędnych")
+
+              cat = props.get("category")
+              if cat not in ALLOWED:
+                  fail(f"Główna warstwa, feature #{i}: nieznana kategoria {cat!r}")
+              cats[cat] += 1
+
+          for required in ("ddr", "droga", "inna", "budowa", "plan"):
+              if cats[required] == 0:
+                  fail(f"Brak kategorii {required}")
+
+          detours = load("data/velo-objazdy.geojson")
+          if len(detours) < 10:
+              fail(f"Objazdy mają podejrzanie mało obiektów: {len(detours)}")
+
+          geoms = Counter()
+          for i, feature in enumerate(detours):
+              geom = feature.get("geometry") or {}
+              props = feature.get("properties") or {}
+
+              gtype = geom.get("type")
+              if gtype not in {"LineString", "Point"}:
+                  fail(f"Objazdy, feature #{i}: niedozwolona geometria {gtype!r}")
+
+              if walk_coords(geom.get("coordinates")) < 1:
+                  fail(f"Objazdy, feature #{i}: brak współrzędnych")
+
+              expected = "line" if gtype == "LineString" else "point"
+              if props.get("kind") != expected:
+                  fail(
+                      f"Objazdy, feature #{i}: kind={props.get('kind')!r}, "
+                      f"oczekiwano {expected!r}"
+                  )
+
+              geoms[gtype] += 1
+
+          if geoms["LineString"] == 0 or geoms["Point"] == 0:
+              fail("Objazdy muszą zawierać zarówno linie, jak i punkty")
+
+          print("WALIDACJA OK")
+          print("VeloM:", len(main), "obiektów", dict(cats))
+          print("Objazdy:", len(detours), "obiektów", dict(geoms))
+          PY
+
+      - name: Przygotuj pliki tymczasowe do publikacji
+        run: |
+          set -euo pipefail
+          cp data/velomalopolska.geojson /tmp/velomalopolska.geojson.new
+          cp data/velo-objazdy.geojson /tmp/velo-objazdy.geojson.new
+
+      - name: Zainstaluj sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
+
+      - name: Zweryfikuj klucz hosta dhostingu
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          ssh-keyscan -T 15 -p "$PORT" -t ed25519 "$HOST" \
+            > ~/.ssh/known_hosts 2>/dev/null
+
+          test -s ~/.ssh/known_hosts
+
+          ACTUAL=$(ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk '{print $2}')
+          test "$ACTUAL" = "$EXPECTED" || {
+            echo "FINGERPRINT MISMATCH"
+            echo "Oczekiwano: $EXPECTED"
+            echo "Otrzymano:  $ACTUAL"
+            exit 1
+          }
+
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Sprawdź bezpieczny katalog docelowy DEV
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 \
+            -p "$PORT" \
+            "$USER@$HOST" \
+            'test -d rowerowy.otwartyplan.org/public_html/mapa-dev/data && test ! -L rowerowy.otwartyplan.org/public_html/mapa-dev/data'
+
+      - name: Wyślij nowe dane jako .new
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -e scp \
+            -o StrictHostKeyChecking=yes \
+            -P "$PORT" \
+            /tmp/velomalopolska.geojson.new \
+            /tmp/velo-objazdy.geojson.new \
+            "$USER@$HOST:rowerowy.otwartyplan.org/public_html/mapa-dev/data/"
+
+      - name: Zachowaj poprzednią wersję i podmień dane atomowo
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=yes \
+            -p "$PORT" \
+            "$USER@$HOST" \
+            'bash -se' <<'REMOTE'
+          set -euo pipefail
+
+          TARGET="rowerowy.otwartyplan.org/public_html/mapa-dev/data"
+          cd "$TARGET"
+
+          test -s velomalopolska.geojson.new
+          test -s velo-objazdy.geojson.new
+
+          # Ostatnia poprawna wersja zostaje jako .bak.
+          cp -p velomalopolska.geojson velomalopolska.geojson.bak
+          cp -p velo-objazdy.geojson velo-objazdy.geojson.bak
+
+          rollback() {
+            echo "Błąd podczas publikacji — przywracam poprzednią wersję"
+            test -s velomalopolska.geojson.bak && cp -p velomalopolska.geojson.bak velomalopolska.geojson
+            test -s velo-objazdy.geojson.bak && cp -p velo-objazdy.geojson.bak velo-objazdy.geojson
+            rm -f velomalopolska.geojson.new velo-objazdy.geojson.new
+          }
+
+          trap rollback ERR
+
+          mv -f velomalopolska.geojson.new velomalopolska.geojson
+          mv -f velo-objazdy.geojson.new velo-objazdy.geojson
+
+          test -s velomalopolska.geojson
+          test -s velo-objazdy.geojson
+
+          trap - ERR
+          echo "VELOM DEV DATA DEPLOY OK"
+          REMOTE
+
+      - name: Zgłoś niepowodzenie jako Issue
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = '[VeloM] automatyczna aktualizacja DEV nie działa';
+            const { owner, repo } = context.repo;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const existing = issues.data.find(
+              i => i.title === title && !i.pull_request
+            );
+
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            const body =
+              `Nie powiodła się automatyczna aktualizacja danych VeloMałopolski.\n\n` +
+              `Run: ${runUrl}\n` +
+              `Czas UTC: ${new Date().toISOString()}\n\n` +
+              `Poprzednia poprawna wersja danych na mapa-dev powinna pozostać zachowana.`;
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body
+              });
+            }
+
+      - name: Zamknij alert po przywróceniu działania
+        if: success()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = '[VeloM] automatyczna aktualizacja DEV nie działa';
+            const { owner, repo } = context.repo;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const existing = issues.data.find(
+              i => i.title === title && !i.pull_request
+            );
+
+            if (existing) {
+              const runUrl =
+                `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body: `Automatyczna aktualizacja znów działa.\n\nRun: ${runUrl}`
+              });
+
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existing.number,
+                state: 'closed'
+              });
+            }
