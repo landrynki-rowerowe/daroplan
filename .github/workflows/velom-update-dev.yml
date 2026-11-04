@@ -62,26 +62,51 @@ jobs:
 
           def clean_description(raw):
               text = unescape(raw or "")
-              text = re.sub(r"(?i)<br\\s*/?>", "\\n", text)
-              text = re.sub(r"(?i)</?(p|div|li|tr|h[1-6])[^>]*>", "\\n", text)
-              text = re.sub(r"(?is)<img\\b[^>]*>", "", text)
-              text = re.sub(r"(?is)<script\\b.*?</script>", "", text)
-              text = re.sub(r"(?is)<style\\b.*?</style>", "", text)
+
+              # KML/Google My Maps: zachowaj strukturę tekstu przed usunięciem HTML.
+              text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+              text = re.sub(r"(?i)</?(p|div|li|tr|h[1-6])[^>]*>", "\n", text)
+
+              # Obrazki i elementy wykonywalne nie są potrzebne w panelu.
+              text = re.sub(r"(?is)<img\b[^>]*>", "", text)
+              text = re.sub(r"(?is)<script\b.*?</script>", "", text)
+              text = re.sub(r"(?is)<style\b.*?</style>", "", text)
+
+              # Usuń pozostałe tagi, ale zostaw ich treść tekstową.
               text = re.sub(r"(?s)<[^>]+>", "", text)
-              text = text.replace("\\xa0", " ")
+              text = text.replace("\xa0", " ")
+
+              # Google/My Maps potrafi dopisać techniczne pola warstwy GIS.
+              # Jeśli taki blok występuje, odetnij go od pierwszego znanego pola.
+              technical_markers = (
+                  "JPT_SJR_KO:", "JPT_POWIER:", "JPT_KOD_JE:", "JPT_NAZWA",
+                  "JPT_JOR_ID:", "WERSJA_OD:", "WAZNY_OD:", "JPT_ORGAN1:",
+                  "JPT_WAZNA", "ID_BUFORA", "ID_TECHNIC:", "IIP_PRZEST:",
+                  "IIP_IDENTY:", "IIP_WERSJA:", "JPT_KJ_IIP:", "JPT_SPS_KO:",
+                  "JPT_ID:", "JPT_GEOMET:", "Shape_Leng:", "Shape_Area:",
+                  "REGON:"
+              )
+              positions = [text.find(marker) for marker in technical_markers if text.find(marker) >= 0]
+              if positions:
+                  text = text[:min(positions)]
+
+              # Porządkuj białe znaki, zachowując maksymalnie jedną pustą linię.
               lines = [" ".join(line.split()) for line in text.splitlines()]
               cleaned = []
-              blank = False
+              previous_blank = False
+
               for line in lines:
                   if line:
                       cleaned.append(line)
-                      blank = False
-                  elif cleaned and not blank:
+                      previous_blank = False
+                  elif cleaned and not previous_blank:
                       cleaned.append("")
-                      blank = True
+                      previous_blank = True
+
               while cleaned and cleaned[-1] == "":
                   cleaned.pop()
-              return "\\n".join(cleaned).strip()
+
+              return "\n".join(cleaned).strip()
 
           def parse_coords(text):
               out = []
