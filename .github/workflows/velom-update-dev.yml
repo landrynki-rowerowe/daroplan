@@ -47,9 +47,11 @@ jobs:
           cat > /tmp/update_objazdy.py <<'PY'
           import io
           import json
+          import re
           import urllib.request
           import zipfile
           import xml.etree.ElementTree as ET
+          from html import unescape
           from pathlib import Path
 
           MID = "16UMazp6pz-IQxUXpUl1c3suxCMHPcpFE"
@@ -57,6 +59,29 @@ jobs:
           NS = {"k": "http://www.opengis.net/kml/2.2"}
           FOLDER = "Objazdy / utrudnienia"
           TARGET = Path("data/velo-objazdy.geojson")
+
+          def clean_description(raw):
+              text = unescape(raw or "")
+              text = re.sub(r"(?i)<br\\s*/?>", "\\n", text)
+              text = re.sub(r"(?i)</?(p|div|li|tr|h[1-6])[^>]*>", "\\n", text)
+              text = re.sub(r"(?is)<img\\b[^>]*>", "", text)
+              text = re.sub(r"(?is)<script\\b.*?</script>", "", text)
+              text = re.sub(r"(?is)<style\\b.*?</style>", "", text)
+              text = re.sub(r"(?s)<[^>]+>", "", text)
+              text = text.replace("\\xa0", " ")
+              lines = [" ".join(line.split()) for line in text.splitlines()]
+              cleaned = []
+              blank = False
+              for line in lines:
+                  if line:
+                      cleaned.append(line)
+                      blank = False
+                  elif cleaned and not blank:
+                      cleaned.append("")
+                      blank = True
+              while cleaned and cleaned[-1] == "":
+                  cleaned.pop()
+              return "\\n".join(cleaned).strip()
 
           def parse_coords(text):
               out = []
@@ -107,7 +132,7 @@ jobs:
 
           for pm in folder.findall("./k:Placemark", NS):
               name = pm.findtext("k:name", "", NS)
-              description = pm.findtext("k:description", "", NS)
+              description = clean_description(pm.findtext("k:description", "", NS))
 
               for node in pm.findall(".//k:LineString/k:coordinates", NS):
                   coords = parse_coords(node.text)
@@ -274,6 +299,10 @@ jobs:
                       f"Objazdy, feature #{i}: kind={props.get('kind')!r}, "
                       f"oczekiwano {expected!r}"
                   )
+
+              description = props.get("description") or ""
+              if "<" in description and ">" in description:
+                  fail(f"Objazdy, feature #{i}: opis nadal zawiera tagi HTML")
 
               geoms[gtype] += 1
 
