@@ -117,6 +117,45 @@ jobs:
 
           root = ET.fromstring(raw)
 
+          COLOR_TO_CATEGORY = {"000000": "zdmk", "FFD600": "remont", "0288D1": "propozycja", "A52714": "priorytet", "BDBDBD": "nzdr"}
+          ALLOWED_BY_FOLDER = {"Przejazdy poprawione przez ZDMK": {"zdmk", "remont"}, "Propozycje strony społecznej": {"propozycja", "priorytet", "nzdr"}}
+          styles = {s.get("id"): s for s in root.findall(".//k:Style", NS) if s.get("id")}
+          stylemaps = {}
+          for sm in root.findall(".//k:StyleMap", NS):
+              sid = sm.get("id")
+              if not sid:
+                  continue
+              pairs = sm.findall("k:Pair", NS)
+              normal = next((p for p in pairs if p.findtext("k:key", "", NS) == "normal"), None)
+              chosen = normal if normal is not None else (pairs[0] if pairs else None)
+              if chosen is not None:
+                  stylemaps[sid] = (chosen.findtext("k:styleUrl", "", NS) or "").strip().rsplit("#", 1)[-1]
+
+          def pin_category(pm, folder_name, name):
+              raw_ref = (pm.findtext("k:styleUrl", "", NS) or "").strip()
+              style_id = raw_ref.rsplit("#", 1)[-1]
+              seen = set()
+              while style_id in stylemaps:
+                  if style_id in seen:
+                      raise ValueError(f"Zapetlona StyleMap: {style_id}")
+                  seen.add(style_id)
+                  style_id = stylemaps[style_id]
+              match = re.search(r"(?i)icon-\d+-([0-9a-f]{6})(?:-|$)", style_id)
+              color_hex = match.group(1).upper() if match else None
+              if not color_hex:
+                  style = pm.find("k:Style", NS)
+                  if style is None:
+                      style = styles.get(style_id)
+                  raw_color = (style.findtext("k:IconStyle/k:color", "", NS) if style is not None else "").strip()
+                  if re.fullmatch(r"[0-9a-fA-F]{8}", raw_color):
+                      color_hex = (raw_color[6:8] + raw_color[4:6] + raw_color[2:4]).upper()
+              category = COLOR_TO_CATEGORY.get(color_hex)
+              if category is None:
+                  raise ValueError(f"Nieznany styl pinezki: {folder_name}, {name!r}, {raw_ref!r}, {color_hex!r}")
+              if category not in ALLOWED_BY_FOLDER[folder_name]:
+                  raise ValueError(f"Nieoczekiwana kategoria w folderze {folder_name}: {name!r}, {category}")
+              return category, "#" + color_hex, raw_ref
+
           for folder_name, target_path in FOLDERS.items():
               folder = None
 
@@ -146,13 +185,18 @@ jobs:
                       print("UWAGA: pominięto punkt bez współrzędnych:", name)
                       continue
 
+                  category, original_color, original_style = pin_category(pm, folder_name, name)
+
                   features.append({
                       "type": "Feature",
                       "properties": {
                           "name": name,
                           "description": description,
                           "source_folder": folder_name,
-                          "source": "Google My Maps"
+                          "source": "Google My Maps",
+                          "category": category,
+                          "original_pin_color": original_color,
+                          "original_style": original_style
                       },
                       "geometry": {
                           "type": "Point",
@@ -255,6 +299,16 @@ jobs:
                           f"{path}, feature #{i}: nieoczekiwany source_folder "
                           f"{props.get('source_folder')!r}"
                       )
+
+                  # Odrzucaj kolory niepasujace do kategorii i folderu.
+                  categories = {
+                      "Przejazdy poprawione przez ZDMK": {"zdmk": "#000000", "remont": "#FFD600"},
+                      "Propozycje strony społecznej": {"propozycja": "#0288D1", "priorytet": "#A52714", "nzdr": "#BDBDBD"},
+                  }
+                  allowed = categories[config["folder"]]
+                  cat = props.get("category")
+                  if cat not in allowed or props.get("original_pin_color", "").upper() != allowed.get(cat):
+                      fail(f"{path}, feature #{i}: niespojny kolor/kategoria: {cat!r}, {props.get('original_pin_color')!r}")
 
                   description = props.get("description") or ""
                   if "<" in description and ">" in description:
