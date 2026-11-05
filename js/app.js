@@ -203,7 +203,9 @@ const dasieLayer='dasie_2.3';
 const dasiePoints=['==',['geometry-type'],'Point'];
 const dasieLines=['==',['geometry-type'],'LineString'];
 add('dasie-line',line('dasie-line','dp-dasie',dasieLayer,'#dc2424',dasieLines,null,3),'dasie');
-add('dasie',circle('dasie','dp-dasie',dasieLayer,'#dc2424',dasiePoints),'dasie');
+const dasieMarker=circle('dasie','dp-dasie',dasieLayer,'#dc2424',dasiePoints);
+dasieMarker.paint['circle-radius']=['interpolate',['linear'],['zoom'],9,2.5,11,3.75,13.5,5.625,16,10];
+add('dasie',dasieMarker,'dasie');
 // Objazdy wstawione PRZED pozostałymi liniami VeloM, aby nie zasłaniać sieci.
 add('velo-objazdy-linie',{
  id:'dp-velo-objazdy-linie',type:'line',source:'dp-veloObjazdy',filter:['==',['get','kind'],'line'],
@@ -273,12 +275,14 @@ if(sourceLayers.sim){
   const routeColor=['match',['to-number',['coalesce',['get','nr_liczba'],['get','nr'],0]],...color.flatMap((c,i)=>[i+1,c]),'#8d569b'];
   add('sim',line('sim','dp-sim',sourceLayers.sim,routeColor,null,null,5),'sim');
 }
-// Oryginalna symbolika granic: czerwony pas po zewnętrznej stronie Krakowa oraz szara linia przerywana.
+// Granica Krakowa: tylko linia przerywana, o 50% grubsza.
 const borderSource=sourceLayers.borders||'Krakow_granice_miasta';
-const redTemplate=styleLayers.find(l=>l.id==='krakow-granice-miasta copy');
-if(redTemplate)styleLayer('krakow-granice-miasta copy','border-red','dp-borders','borders');
-else {add('border-red',line('border-red','dp-borders',borderSource,'#ff5252',null,null,13),'borders');map.setPaintProperty('dp-border-red','line-opacity',.4);map.setPaintProperty('dp-border-red','line-offset',-6.5)}
 styleLayer('krakow-granice-miasta','borders','dp-borders','borders');
+if(!map.getLayer('dp-borders'))add('borders',line('borders','dp-borders',borderSource,'#777777',null,[2,2],2.4),'borders');
+if(map.getLayer('dp-borders')){
+ const originalWidth=map.getPaintProperty('dp-borders','line-width')??2;
+ map.setPaintProperty('dp-borders','line-width',['*',1.5,originalWidth]);
+}
 styleLayer('zamaledowania','residences','dp-residences','residences');
 }
 // Jedna droga odbudowy warstw po KAŻDEJ zmianie podkładu.
@@ -343,7 +347,10 @@ function highlightFeature(feature){
   map.addLayer({id:'dp-selected-edge',type:'line',source:'dp-selected',paint:{'line-color':'#ff3b30','line-width':4}});
   selectedOutlineIds=['dp-selected-area','dp-selected-edge'];
  }else if(type.includes('Point')){
-  map.addLayer({id:'dp-selected-point',type:'circle',source:'dp-selected',paint:{'circle-radius':13,'circle-color':'#ff3b30','circle-stroke-color':'#fff','circle-stroke-width':4}});
+  const crossing=feature.layer?.id?.startsWith('dp-crossings-');
+  const colorByCategory={zdmk:'#2878d0',remont:'#ee8b27',propozycja:'#db4242',priorytet:'#904ac3',nzdr:'#858b94'};
+  const color=crossing?(colorByCategory[feature.properties?.category]||'#777777'):'#ff3b30';
+  map.addLayer({id:'dp-selected-point',type:'circle',source:'dp-selected',paint:{'circle-radius':13,'circle-color':color,'circle-stroke-color':crossing?'#454b54':'#fff','circle-stroke-width':crossing?3:4}});
   selectedOutlineIds=['dp-selected-point'];
  }
  const pts=[];
@@ -799,7 +806,13 @@ function renderControls(){
  const expand=document.createElement('button');expand.type='button';expand.className='expand-infra';expand.textContent=infraExpanded?'▾':'▸';expand.title=infraExpanded?'Zwiń kategorie':'Rozwiń kategorie';expand.setAttribute('aria-expanded',String(infraExpanded));expand.onclick=()=>{infraExpanded=!infraExpanded;renderControls()};infraHeader.append(expand);if(mode==='infra')box.append(infraHeader);
  if(mode==='infra'&&infraExpanded){const wrap=document.createElement('div');wrap.className='infra-children';for(const cat of infraCategories)wrap.append(row(cat.id,cat.name,swatch(cat.color,cat.dash)));box.append(wrap)}
  const legend={suggestions:['#e32626','dotted'],construction:['#ee9a12','dashed'],tempoLines:['#f5d51b',null],tempo20:['#ffb767',null],counters:['#f47a20',null],dasie:['#dc2424',null]};
- for(const layer of layerGroups){if(layer.id==='infra'||!moduleLayerIds[mode].includes(layer.id))continue;const detail=legend[layer.id];box.append(row(layer.id,layer.title,detail?swatch(...detail):null));if(layer.id==='velo'){
+ for(const layer of layerGroups){if(layer.id==='infra'||!moduleLayerIds[mode].includes(layer.id))continue;const detail=legend[layer.id];box.append(row(layer.id,layer.title,detail?swatch(...detail):null));if(layer.id==='crossings'){
+  const crossingLegend=[['#2878d0','Wykonane przez ZDMK'],['#ee8b27','Trwa remont / budowa'],['#db4242','Propozycje społeczne'],['#904ac3','Priorytet — do zrobienia'],['#858b94','Wykonane przez NZDR']];
+  const block=document.createElement('div');block.className='infra-children';
+  block.append(textNode('div','Gładkie przejazdy — legenda','fixed-layer-note'));
+  for(const [color,label] of crossingLegend){const entry=textNode('div','','layer-line');const dot=document.createElement('span');dot.setAttribute('aria-hidden','true');dot.style.cssText='display:inline-block;width:12px;height:12px;border-radius:50%;background:'+color+';border:1px solid #fff;box-shadow:0 0 0 1px #777;flex:none';entry.append(dot,textNode('span',label));block.append(entry);}
+  box.append(block);
+ }if(layer.id==='velo'){
  const wrap=document.createElement('div');wrap.className='infra-children';
  for(const [id,title,color,dash] of [['velo-ddr','DDR / CPR','#2456cb',null],['velo-droga','Droga w ruchu ogólnym','#159924','dashed'],['velo-inna','Inna nawierzchnia — uwaga','#e32626','dashed'],['velo-budowa','W budowie','#f3a414','dashed'],['velo-plan','Planowane','#9848ce','dotted'],['velo-nieokreslone','Inne oznaczenia — do weryfikacji','#7d42b3','dotted']])wrap.append(row(id,title,swatch(color,dash)));
  wrap.append(row('velo-objazdy','Objazdy / utrudnienia',swatch('#ff8c24')));
@@ -808,11 +821,6 @@ function renderControls(){
  }}
  if(mode!=='wiecej'){const label=textNode('h3','Dodatkowe nakładki');box.append(label);for(const id of addonLayers){const group=layerGroups.find(layer=>layer.id===id);if(group)box.append(row(id,group.title))}}
  if(mode==='wiecej'){
-  const crossingLegend=[['#2878d0','Wykonane przez ZDMK'],['#ee8b27','Trwa remont / budowa'],['#db4242','Propozycje społeczne'],['#904ac3','Priorytet — do zrobienia'],['#858b94','Wykonane przez NZDR']];
-  const block=document.createElement('div');block.className='infra-children';
-  block.append(textNode('div','Gładkie przejazdy — legenda','fixed-layer-note'));
-  for(const [color,label] of crossingLegend){const entry=textNode('div','','layer-line');const dot=document.createElement('span');dot.setAttribute('aria-hidden','true');dot.style.cssText='display:inline-block;width:12px;height:12px;border-radius:50%;background:'+color+';border:1px solid #fff;box-shadow:0 0 0 1px #777;flex:none';entry.append(dot,textNode('span',label));block.append(entry);}
-  box.append(block);
   const help=textNode('p','Warstwy specjalistyczne można nakładać na pozostałe mapy tematyczne.','note');box.prepend(help);
  }
  const fixed=document.createElement('div');fixed.className='fixed-layer-note';fixed.append(swatch('#777','dashed'),textNode('span','Granice Krakowa — zawsze widoczne'));box.append(fixed);
