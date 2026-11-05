@@ -72,7 +72,7 @@ jobs:
           def extract_style(pm):
               raw_ref = (pm.findtext("k:styleUrl", "", NS) or "").strip()
               style_ref = resolve(raw_ref)
-              match = re.search(r"(?i)(?:^|#)?icon-\\d+-([0-9a-f]{6})(?:-|$)", style_ref)
+              match = re.search(r"(?i)(?:^|#)?icon-\d+-([0-9a-f]{6})(?:-|$)", style_ref)
               style_hex = match.group(1).upper() if match else None
               inline = pm.find("k:Style", NS)
               shared = styles.get(style_ref)
