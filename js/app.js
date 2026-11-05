@@ -280,7 +280,8 @@ const borderSource=sourceLayers.borders||'Krakow_granice_miasta';
 styleLayer('krakow-granice-miasta','borders','dp-borders','borders');
 if(!map.getLayer('dp-borders'))add('borders',line('borders','dp-borders',borderSource,'#777777',null,[2,2],2.4),'borders');
 if(map.getLayer('dp-borders')){
- const originalWidth=map.getPaintProperty('dp-borders','line-width')??2;
+ const template=styleLayers.find(l=>l.id==='krakow-granice-miasta');
+ const originalWidth=template?.paint?.['line-width']??2;
  map.setPaintProperty('dp-borders','line-width',['*',1.5,originalWidth]);
 }
 styleLayer('zamaledowania','residences','dp-residences','residences');
