@@ -166,7 +166,7 @@ jobs:
               }
 
               Path(target_path).write_text(
-                  json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\\n",
+                  json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n",
                   encoding="utf-8"
               )
 
@@ -175,7 +175,7 @@ jobs:
               )
 
           Path("wynik/RAPORT.txt").write_text(
-              "\\n".join(report) + "\\n",
+              "\n".join(report) + "\n",
               encoding="utf-8"
           )
 
