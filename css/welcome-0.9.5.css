@@ -1,0 +1,18 @@
+/* DaRoPlan 0.9.5 — panel powitalny i ikona panelu warstw */
+#layersBtn{display:flex;align-items:center;justify-content:center;gap:8px}
+#layersBtn svg{flex-shrink:0}
+.dp-welcome{padding:6px 0 8px;display:flex;flex-direction:column;gap:13px;min-height:225px}
+.dp-welcome-eyebrow{font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.65}
+.dp-welcome-title{font-size:22px;line-height:1.25;margin:0;font-weight:700}
+.dp-welcome-description{font-size:15px;line-height:1.55;margin:0}
+.dp-welcome-navigation{display:flex;align-items:center;justify-content:space-between;margin:3px 0}
+.dp-welcome-dots{display:flex;gap:8px;align-items:center}
+.dp-welcome-dot{width:9px;height:9px;border:0;border-radius:100px;background:#b8c2c7;padding:0;cursor:pointer}
+.dp-welcome-dot.active{width:24px;background:#345e62}
+.dp-welcome-arrows{display:flex;gap:8px}
+.dp-welcome-arrows button{width:34px;height:34px;border-radius:10px;border:1px solid #cbd4d9;background:transparent;cursor:pointer;font-size:24px;line-height:1}
+.dp-welcome-action{align-self:flex-start;background:#245a63;color:white;border:none;border-radius:11px;padding:11px 14px;cursor:pointer;font-weight:600}
+.dp-welcome button:focus-visible{outline:3px solid #2c78dd;outline-offset:2px}
+/* Moduły muszą pozostać dostępne podczas wyświetlania panelu. */
+.bottom-nav{z-index:110!important}
+@media(max-width:700px){.dp-welcome{min-height:0;gap:9px}.dp-welcome-title{font-size:19px}.dp-welcome-description{font-size:14px}.info-panel.welcome-view:not(.expanded){max-height:min(45vh,340px);overflow:auto}.bottom-nav{z-index:110!important}}

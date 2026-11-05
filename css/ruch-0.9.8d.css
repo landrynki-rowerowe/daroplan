@@ -1,0 +1,25 @@
+/* 0.9.8d: wyłącznie wygląd RUCH; inne moduły bez zmian */
+.dp-ruch-nav{max-width:340px;margin:0 auto 12px;display:flex;flex-direction:column;gap:6px;padding:8px 10px!important}
+.dp-ruch-nav .dp-ruch-period{display:flex;justify-content:center}
+.dp-ruch-nav .dp-ruch-period label{display:flex;align-items:center;gap:8px;font-size:12px}
+.dp-ruch-nav .dp-ruch-period select{max-width:145px;font-size:13px;padding:4px 8px}
+.dp-ruch-nav .dp-ruch-arrows{display:flex;align-items:center;justify-content:center;gap:6px}
+.dp-ruch-nav .dp-ruch-arrows strong{flex:0 1 auto;min-width:0;text-align:center;font-size:13px;white-space:nowrap}
+.dp-ruch-nav .dp-ruch-arrows button{min-width:29px;min-height:29px;padding:3px 9px;font-size:12px}
+.dp-ruch-nav .dp-ruch-arrows:nth-child(3) button{min-width:auto}
+.dp-ruch-hint{font-size:12px;color:#6c757d;margin:8px 0 12px;line-height:1.45}
+.dp-ruch-counter-description{padding:8px 0;margin:0 0 8px}
+.dp-ruch-counter-description h3{font-size:16px;margin:0 0 7px}
+.dp-ruch-counter-description p{font-size:12px;line-height:1.5;color:#64707b;margin:0 0 6px}
+.dp-ruch-counter-description .dp-ruch-lead{font-weight:600;color:inherit}
+.dp-ruch-metric.dp-ruch-positive strong,.dp-ruch-positive{color:#198754!important}
+.dp-ruch-metric.dp-ruch-negative strong,.dp-ruch-negative{color:#dc3545!important}
+.dp-ruch-neutral{color:#58616b!important}
+.dp-ruch-muted{color:#85909b!important}
+.dp-ruch-metric .dp-ruch-meta{font-size:11px;opacity:.75;color:inherit;line-height:1.4}
+.dp-ruch-deltas{display:flex;flex-direction:column;gap:3px;margin-top:2px}
+.dp-ruch-delta-line{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px;font-size:11px;line-height:1.35}
+.dp-ruch-delta{font-size:12px;font-weight:750}
+.dp-ruch-delta-caption{font-size:10px;color:#707a83}
+.dp-ruch-metrics{margin:8px 0 14px}
+.dp-ruch-metric{gap:4px}

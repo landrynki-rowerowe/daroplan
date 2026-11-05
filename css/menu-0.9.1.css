@@ -1,0 +1,19 @@
+/* DaRoPlan 0.9.1: stałe, niezależne od panelu menu modułów */
+.bottom-nav{z-index:80!important;bottom:max(14px,env(safe-area-inset-bottom))!important;gap:9px!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.bottom-nav button{width:75px!important;height:75px!important;min-width:0!important;flex:none!important;border:1px solid #dce4e8!important;border-radius:19px!important;box-shadow:0 4px 15px #172b3730!important;background:#fff!important;color:#334b58!important;gap:3px!important;justify-content:center!important;padding:7px!important}
+.bottom-nav button.active{background:#eaf3fb!important;border-color:#2477b8!important;color:#15569c!important;box-shadow:0 4px 18px #1257a840!important}
+.bottom-nav button .module-symbol{font-size:25px;line-height:26px;font-weight:800}
+.bottom-nav button small{font-size:11px;font-weight:650;line-height:1.1}
+.bottom-nav button[data-mode=infra] .module-symbol{font-size:16px;line-height:20px;letter-spacing:.02em}
+.bottom-nav button[data-mode=infra] small{font-size:12px}
+@media (min-width:651px){.panel-open .bottom-nav{left:calc((100vw - min(520px,100vw))/2)!important}}
+@media (max-width:650px){.bottom-nav{width:auto!important;left:50%;gap:5px!important;max-width:calc(100vw - 12px)}.bottom-nav button{width:clamp(57px,18vw,72px)!important;height:clamp(57px,18vw,72px)!important;border-radius:16px!important;padding:4px!important}.bottom-nav button .module-symbol{font-size:20px}.bottom-nav button[data-mode=infra] .module-symbol{font-size:13px;line-height:15px}.bottom-nav button small{font-size:10px}.info-panel{bottom:calc(90px + env(safe-area-inset-bottom))!important;height:min(58dvh,570px)!important;max-height:calc(100dvh - 108px)!important;border-radius:18px 18px 0 0}.info-panel.expanded{height:calc(100dvh - 100px)!important}}
+
+/* 0.9.1a: pomniejszenie przycisków o 20%, czytelne ikony SVG */
+.bottom-nav button{width:60px!important;height:60px!important;border-radius:16px!important;padding:4px!important;gap:1px!important}
+.bottom-nav button .module-symbol{font-size:21px;line-height:23px;display:flex;align-items:center;justify-content:center;height:25px}
+.bottom-nav button .module-symbol svg{width:24px;height:24px;display:block;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bottom-nav button small{font-size:10px;line-height:1.05}
+.bottom-nav button[data-mode=infra] .module-symbol{font-size:13px;line-height:15px;height:17px}
+.bottom-nav button[data-mode=infra] small{font-size:10px}
+@media (max-width:650px){.bottom-nav{gap:5px!important}.bottom-nav button{width:clamp(47px,15vw,60px)!important;height:clamp(47px,15vw,60px)!important;border-radius:13px!important;padding:3px!important}.bottom-nav button .module-symbol{height:21px!important}.bottom-nav button .module-symbol svg{width:21px;height:21px}.bottom-nav button small{font-size:9px}.bottom-nav button[data-mode=infra] .module-symbol{font-size:11px!important;line-height:12px!important;height:14px!important}.bottom-nav button[data-mode=infra] small{font-size:9px}}

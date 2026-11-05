@@ -1,0 +1,40 @@
+/* DaRoPlan 0.9.6a-mobile: dolny panel obsługiwany gestami. Tylko urządzenia mobilne. */
+@media (max-width:700px) {
+  html,body,#map {height:100%;height:100dvh;}
+  #layersBtn.dp-panel-tab {display:none!important;}
+  #infoPanel.info-panel {
+    position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;
+    width:100%!important;height:var(--dp-sheet-height,112px)!important;
+    max-height:calc(100dvh - 12px)!important;
+    padding:39px 18px calc(94px + env(safe-area-inset-bottom))!important;
+    border-radius:20px 20px 0 0!important;overflow-y:auto!important;overscroll-behavior:contain;
+    z-index:65!important;
+    box-shadow:0 -4px 24px #132c4033;
+    transition:height 260ms cubic-bezier(.2,.7,.25,1),transform 260ms cubic-bezier(.2,.7,.25,1)!important;
+    transform:translateY(0);
+    -webkit-overflow-scrolling:touch;
+  }
+  #infoPanel.dp-sheet-dragging {transition:none!important;}
+  #infoPanel[data-sheet-state="hidden"] {
+    transform:translateY(100%)!important;pointer-events:none!important;overflow:hidden!important;
+    transition:height 260ms,transform 260ms!important;
+  }
+  #infoPanel #panelExpand.panel-expand {
+    display:flex!important;align-items:center;justify-content:center;position:absolute!important;
+    z-index:120!important;top:0!important;left:0!important;right:0!important;
+    margin:0!important;width:100%!important;height:38px!important;
+    background:transparent!important;border:0!important;border-radius:20px 20px 0 0!important;
+    touch-action:none!important;cursor:grab;
+  }
+  #infoPanel #panelExpand.panel-expand:before {
+    content:"";display:block;width:39px;height:5px;background:#aab4bc;border-radius:20px;
+  }
+  #infoPanel #panelExpand.panel-expand:active {cursor:grabbing;}
+  #infoPanel .panel-section {min-height:0!important;}
+  
+  .bottom-nav {position:fixed!important;z-index:145!important;bottom:calc(11px + env(safe-area-inset-bottom))!important;}
+  .mapboxgl-ctrl-bottom-left,.mapboxgl-ctrl-bottom-right {bottom:calc(83px + env(safe-area-inset-bottom))!important;}
+}
+@media (max-width:700px) and (orientation:landscape) {
+ #infoPanel.info-panel {max-height:calc(100dvh - 8px)!important;}
+}

@@ -1,0 +1,11 @@
+/* 0.9.8e — wyłącznie stylistyka kafelków i nagłówka wybranego licznika. */
+.dp-ruch-metric small,.dp-ruch-metric .dp-ruch-meta{color:inherit!important}
+.dp-ruch-metric .dp-ruch-meta{opacity:.72}
+.dp-ruch-metric strong.dp-ruch-positive,.dp-ruch-delta.dp-ruch-positive{color:#198754!important}
+.dp-ruch-metric strong.dp-ruch-negative,.dp-ruch-delta.dp-ruch-negative{color:#dc3545!important}
+.dp-ruch-delta-caption{color:#707a83!important}
+.dp-ruch-counter-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px}
+.dp-ruch-counter-description .dp-ruch-counter-heading h3{font-size:19px;font-weight:750;line-height:1.2;margin:0;flex:1 1 auto;min-width:120px}
+.dp-ruch-counter-heading .dp-ruch-reset{order:2;flex:0 0 auto;background:transparent!important;color:#637180!important;border:1px solid #d2d8df!important;border-radius:7px;padding:5px 8px;font-size:11px;line-height:1.3;font-weight:500;box-shadow:none}
+.dp-ruch-counter-heading .dp-ruch-reset:hover,.dp-ruch-counter-heading .dp-ruch-reset:focus-visible{color:#263b52!important;border-color:#8b9aaa!important;background:rgba(120,140,160,.08)!important}
+@media (max-width:420px){.dp-ruch-counter-description .dp-ruch-counter-heading h3{font-size:18px}}
