@@ -1,0 +1,472 @@
+name: Aktualizuj przejazdy ZDMK i propozycje społeczne DEV
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub Actions używa UTC.
+    # Celowo inna minuta niż VeloM, aby aktualizacje nie startowały równocześnie.
+    - cron: "41 4 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: crossings-data-dev
+  cancel-in-progress: false
+
+jobs:
+  update-crossings-dev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Ustaw Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Pobierz i przetwórz dane z Google My Maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p wynik
+
+          cat > /tmp/update_crossings.py <<'PY'
+          import io
+          import json
+          import re
+          import urllib.request
+          import zipfile
+          import xml.etree.ElementTree as ET
+          from html import unescape
+          from pathlib import Path
+
+          MID = "1WhaTsv1tTIX968oqzBFcrABayYjnE5I"
+          URL = f"https://www.google.com/maps/d/kml?mid={MID}&forcekml=1"
+          NS = {"k": "http://www.opengis.net/kml/2.2"}
+
+          FOLDERS = {
+              "Przejazdy poprawione przez ZDMK": "wynik/przejazdy-zdmk.geojson",
+              "Propozycje strony społecznej": "wynik/propozycje-spoleczne.geojson",
+          }
+
+          def clean_description(raw):
+              text = unescape(raw or "")
+              text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+              text = re.sub(r"(?i)</?(p|div|li|tr|h[1-6])[^>]*>", "\n", text)
+              text = re.sub(r"(?is)<img\b[^>]*>", "", text)
+              text = re.sub(r"(?is)<script\b.*?</script>", "", text)
+              text = re.sub(r"(?is)<style\b.*?</style>", "", text)
+              text = re.sub(r"(?s)<[^>]+>", "", text)
+              text = text.replace("\xa0", " ")
+
+              lines = [" ".join(line.split()) for line in text.splitlines()]
+              cleaned = []
+              previous_blank = False
+
+              for line in lines:
+                  if line:
+                      cleaned.append(line)
+                      previous_blank = False
+                  elif cleaned and not previous_blank:
+                      cleaned.append("")
+                      previous_blank = True
+
+              while cleaned and cleaned[-1] == "":
+                  cleaned.pop()
+
+              return "\n".join(cleaned).strip()
+
+          def parse_point_coords(text):
+              tokens = (text or "").split()
+              if not tokens:
+                  return None
+
+              parts = tokens[0].split(",")
+              if len(parts) < 2:
+                  return None
+
+              lon = float(parts[0])
+              lat = float(parts[1])
+
+              if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+                  raise ValueError(f"Niepoprawne współrzędne: {lon}, {lat}")
+
+              return [lon, lat]
+
+          req = urllib.request.Request(
+              URL,
+              headers={"User-Agent": "Mozilla/5.0 (GitHub Actions DaRoPlan DEV)"}
+          )
+
+          with urllib.request.urlopen(req, timeout=60) as response:
+              raw = response.read()
+
+          if len(raw) < 1000:
+              raise SystemExit("Pobrany plik z Google jest podejrzanie mały")
+
+          print("Pobrano z Google:", len(raw), "bajtów")
+
+          if raw[:2] == b"PK":
+              with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                  names = [n for n in z.namelist() if n.lower().endswith(".kml")]
+                  if not names:
+                      raise SystemExit("KMZ nie zawiera pliku KML")
+                  raw = z.read(names[0])
+
+          root = ET.fromstring(raw)
+
+          for folder_name, target_path in FOLDERS.items():
+              folder = None
+
+              for f in root.findall(".//k:Folder", NS):
+                  if f.findtext("k:name", "", NS).strip() == folder_name:
+                      folder = f
+                      break
+
+              if folder is None:
+                  raise SystemExit(f'Nie znaleziono folderu "{folder_name}"')
+
+              features = []
+
+              for pm in folder.findall("./k:Placemark", NS):
+                  name = pm.findtext("k:name", "", NS).strip()
+                  description = clean_description(
+                      pm.findtext("k:description", "", NS)
+                  )
+
+                  point = pm.find(".//k:Point/k:coordinates", NS)
+                  if point is None:
+                      print("UWAGA: pominięto obiekt bez Point:", name)
+                      continue
+
+                  coords = parse_point_coords(point.text)
+                  if coords is None:
+                      print("UWAGA: pominięto punkt bez współrzędnych:", name)
+                      continue
+
+                  features.append({
+                      "type": "Feature",
+                      "properties": {
+                          "name": name,
+                          "description": description,
+                          "source_folder": folder_name,
+                          "source": "Google My Maps"
+                      },
+                      "geometry": {
+                          "type": "Point",
+                          "coordinates": coords
+                      }
+                  })
+
+              if not features:
+                  raise SystemExit(f'Folder "{folder_name}" nie zawiera punktów')
+
+              data = {
+                  "type": "FeatureCollection",
+                  "features": features
+              }
+
+              Path(target_path).write_text(
+                  json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n",
+                  encoding="utf-8"
+              )
+
+              print(folder_name, ":", len(features), "punktów")
+          PY
+
+          python3 /tmp/update_crossings.py
+
+      - name: Zweryfikuj oba GeoJSON-y
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          FILES = {
+              "wynik/przejazdy-zdmk.geojson": {
+                  "minimum": 50,
+                  "folder": "Przejazdy poprawione przez ZDMK"
+              },
+              "wynik/propozycje-spoleczne.geojson": {
+                  "minimum": 20,
+                  "folder": "Propozycje strony społecznej"
+              },
+          }
+
+          def fail(msg):
+              raise SystemExit("BŁĄD WALIDACJI: " + msg)
+
+          for path, config in FILES.items():
+              try:
+                  data = json.loads(Path(path).read_text(encoding="utf-8"))
+              except Exception as e:
+                  fail(f"{path}: nie można odczytać JSON: {e}")
+
+              if data.get("type") != "FeatureCollection":
+                  fail(f"{path}: root.type != FeatureCollection")
+
+              features = data.get("features")
+              if not isinstance(features, list):
+                  fail(f"{path}: features nie jest listą")
+
+              if len(features) < config["minimum"]:
+                  fail(
+                      f"{path}: podejrzanie mało obiektów: {len(features)} "
+                      f"(minimum {config['minimum']})"
+                  )
+
+              for i, feature in enumerate(features):
+                  if feature.get("type") != "Feature":
+                      fail(f"{path}, feature #{i}: to nie Feature")
+
+                  geom = feature.get("geometry") or {}
+                  props = feature.get("properties") or {}
+
+                  if geom.get("type") != "Point":
+                      fail(
+                          f"{path}, feature #{i}: "
+                          f"oczekiwano Point, jest {geom.get('type')!r}"
+                      )
+
+                  coords = geom.get("coordinates")
+                  if (
+                      not isinstance(coords, list)
+                      or len(coords) < 2
+                      or not all(isinstance(x, (int, float)) for x in coords[:2])
+                  ):
+                      fail(f"{path}, feature #{i}: błędne współrzędne")
+
+                  lon, lat = coords[:2]
+                  if not (
+                      math.isfinite(lon)
+                      and math.isfinite(lat)
+                      and -180 <= lon <= 180
+                      and -90 <= lat <= 90
+                  ):
+                      fail(f"{path}, feature #{i}: współrzędne poza zakresem")
+
+                  if props.get("source_folder") != config["folder"]:
+                      fail(
+                          f"{path}, feature #{i}: nieoczekiwany source_folder "
+                          f"{props.get('source_folder')!r}"
+                      )
+
+                  description = props.get("description") or ""
+                  if "<" in description and ">" in description:
+                      fail(
+                          f"{path}, feature #{i}: opis nadal zawiera tagi HTML"
+                      )
+
+              print(f"OK: {path} | {len(features)} punktów")
+          PY
+
+      - name: Przygotuj pliki .new
+        run: |
+          set -euo pipefail
+          cp wynik/przejazdy-zdmk.geojson /tmp/przejazdy-zdmk.geojson.new
+          cp wynik/propozycje-spoleczne.geojson /tmp/propozycje-spoleczne.geojson.new
+
+      - name: Zainstaluj sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y sshpass
+
+      - name: Zweryfikuj klucz hosta dhostingu
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          ssh-keyscan -T 15 -p "$PORT" -t ed25519 "$HOST" \
+            > ~/.ssh/known_hosts 2>/dev/null
+
+          test -s ~/.ssh/known_hosts
+
+          ACTUAL=$(ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk '{print $2}')
+
+          test "$ACTUAL" = "$EXPECTED" || {
+            echo "FINGERPRINT MISMATCH"
+            echo "Oczekiwano: $EXPECTED"
+            echo "Otrzymano:  $ACTUAL"
+            exit 1
+          }
+
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Sprawdź bezpieczny katalog docelowy DEV
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 \
+            -p "$PORT" \
+            "$USER@$HOST" \
+            'test -d rowerowy.otwartyplan.org/public_html/mapa-dev/data && test ! -L rowerowy.otwartyplan.org/public_html/mapa-dev/data'
+
+      - name: Wyślij nowe dane jako .new
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -e scp \
+            -o StrictHostKeyChecking=yes \
+            -P "$PORT" \
+            /tmp/przejazdy-zdmk.geojson.new \
+            /tmp/propozycje-spoleczne.geojson.new \
+            "$USER@$HOST:rowerowy.otwartyplan.org/public_html/mapa-dev/data/"
+
+      - name: Zachowaj poprzednią wersję i podmień dane atomowo
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=yes \
+            -p "$PORT" \
+            "$USER@$HOST" \
+            'bash -se' <<'REMOTE'
+          set -euo pipefail
+
+          TARGET="rowerowy.otwartyplan.org/public_html/mapa-dev/data"
+          cd "$TARGET"
+
+          test -s przejazdy-zdmk.geojson.new
+          test -s propozycje-spoleczne.geojson.new
+
+          # Przy pierwszym wdrożeniu plików może jeszcze nie być.
+          test -f przejazdy-zdmk.geojson && cp -p przejazdy-zdmk.geojson przejazdy-zdmk.geojson.bak || true
+          test -f propozycje-spoleczne.geojson && cp -p propozycje-spoleczne.geojson propozycje-spoleczne.geojson.bak || true
+
+          rollback() {
+            echo "Błąd podczas publikacji — próbuję przywrócić poprzednią wersję"
+
+            if test -s przejazdy-zdmk.geojson.bak; then
+              cp -p przejazdy-zdmk.geojson.bak przejazdy-zdmk.geojson
+            fi
+
+            if test -s propozycje-spoleczne.geojson.bak; then
+              cp -p propozycje-spoleczne.geojson.bak propozycje-spoleczne.geojson
+            fi
+
+            rm -f przejazdy-zdmk.geojson.new propozycje-spoleczne.geojson.new
+          }
+
+          trap rollback ERR
+
+          mv -f przejazdy-zdmk.geojson.new przejazdy-zdmk.geojson
+          mv -f propozycje-spoleczne.geojson.new propozycje-spoleczne.geojson
+
+          test -s przejazdy-zdmk.geojson
+          test -s propozycje-spoleczne.geojson
+
+          trap - ERR
+          echo "CROSSINGS DEV DATA DEPLOY OK"
+          REMOTE
+
+      - name: Zgłoś niepowodzenie jako Issue
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = '[Przejazdy] automatyczna aktualizacja DEV nie działa';
+            const { owner, repo } = context.repo;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const existing = issues.data.find(
+              i => i.title === title && !i.pull_request
+            );
+
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            const body =
+              `Nie powiodła się automatyczna aktualizacja danych:\n` +
+              `- Przejazdy poprawione przez ZDMK\n` +
+              `- Propozycje strony społecznej\n\n` +
+              `Run: ${runUrl}\n` +
+              `Czas UTC: ${new Date().toISOString()}\n\n` +
+              `Poprzednia poprawna wersja danych na mapa-dev powinna pozostać zachowana.`;
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body
+              });
+            }
+
+      - name: Zamknij alert po przywróceniu działania
+        if: success()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = '[Przejazdy] automatyczna aktualizacja DEV nie działa';
+            const { owner, repo } = context.repo;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const existing = issues.data.find(
+              i => i.title === title && !i.pull_request
+            );
+
+            if (existing) {
+              const runUrl =
+                `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body: `Automatyczna aktualizacja znów działa.\n\nRun: ${runUrl}`
+              });
+
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existing.number,
+                state: 'closed'
+              });
+            }
