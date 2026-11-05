@@ -10,3 +10,26 @@
 .dp-ruch-selection .dp-ruch-reset{display:inline-flex;width:auto;max-width:100%;align-items:center;justify-content:center;border:1px solid #cbd4dc;border-radius:7px;background:transparent;color:#526271;padding:4px 7px;font-size:11px;cursor:pointer;white-space:normal;text-align:left}
 .dp-ruch-combined-rain{font-size:12px!important;opacity:1!important;font-weight:600}
 @media(max-width:420px){.dp-ruch-topline{grid-template-columns:minmax(110px,43%) minmax(0,1fr);gap:7px}.dp-ruch-nav .dp-ruch-period select{max-width:100%}}
+
+/* 0.9.8h: kompletna nawigacja w lewej kolumnie; opis licznika po prawej. */
+.dp-ruch-nav .dp-ruch-topline{
+  display:grid;
+  grid-template-columns:minmax(0,44%) minmax(0,1fr);
+  gap:12px;
+  align-items:start;
+}
+.dp-ruch-controls{display:flex;flex-direction:column;gap:7px;min-width:0}
+.dp-ruch-nav .dp-ruch-controls .dp-ruch-period{justify-content:flex-start!important}
+.dp-ruch-nav .dp-ruch-controls .dp-ruch-arrows{
+  display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0;
+}
+.dp-ruch-nav .dp-ruch-controls .dp-ruch-arrows button{min-width:0;flex:0 0 auto;padding:4px 6px}
+.dp-ruch-nav .dp-ruch-controls .dp-ruch-arrows strong{flex:1 1 auto;min-width:0;white-space:normal;font-size:12px}
+.dp-ruch-nav .dp-ruch-controls .dp-ruch-arrows:last-child button{flex:1 1 0;white-space:normal;font-size:11px}
+.dp-ruch-selection .dp-ruch-lead{font-weight:600;color:inherit}
+.dp-ruch-selection .dp-ruch-counter-description p{max-height:none;overflow:visible}
+@media(max-width:420px){
+  .dp-ruch-nav .dp-ruch-topline{grid-template-columns:minmax(0,48%) minmax(0,1fr);gap:8px}
+  .dp-ruch-nav .dp-ruch-controls .dp-ruch-arrows button{padding:4px}
+  .dp-ruch-nav .dp-ruch-controls .dp-ruch-arrows:last-child button{font-size:10px}
+}
