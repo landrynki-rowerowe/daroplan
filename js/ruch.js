@@ -80,8 +80,10 @@ function drawDetails(){if(!container||!selected||!details)return;const c=details
 function render(){if(!container||!active)return;unloadCharts();container.replaceChildren();
  const nav=document.createElement('section');nav.className='dp-ruch-nav';nav.innerHTML='<div class="dp-ruch-period"><label>Okres <select id="dpRuchMode">'+Object.entries(modeNames).map(([k,v])=>'<option value="'+k+'"'+(mode===k?' selected':'')+'>'+v+'</option>').join('')+'</select></label></div><div class="dp-ruch-arrows"><button id="dpRuchPrev" aria-label="Poprzedni okres">‹</button><strong id="dpRuchPeriod">'+esc(labelPeriod(period))+'</strong><button id="dpRuchNext" aria-label="Następny okres">›</button></div><div class="dp-ruch-arrows"><button id="dpRuchPrevYear">Rok wcześniej</button><button id="dpRuchNextYear">Rok później</button></div>';
  const topline=document.createElement('div');topline.className='dp-ruch-topline';
- const periodControl=nav.querySelector('.dp-ruch-period');const status=document.createElement('div');status.className='dp-ruch-selection';
- topline.append(periodControl,status);nav.prepend(topline);
+ const controls=document.createElement('div');controls.className='dp-ruch-controls';
+ controls.append(...Array.from(nav.children));
+ const status=document.createElement('div');status.className='dp-ruch-selection';
+ topline.append(controls,status);nav.append(topline);
  container.append(nav);nav.querySelector('#dpRuchMode').onchange=async e=>{mode=e.target.value;period=String(meta[{'month':'last_full_month','quarter':'last_full_quarter','year':'last_full_year'}[mode]]);saveURL();await loadPeriod()};
  const arr=periods(),index=arr.indexOf(String(period));
  for(const [id,offset] of [['dpRuchPrev',-1],['dpRuchNext',1]]){const b=nav.querySelector('#'+id);b.disabled=index+offset<0||index+offset>=arr.length;b.onclick=()=>{period=String(arr[index+offset]);saveURL();loadPeriod()}};
@@ -94,7 +96,7 @@ function render(){if(!container||!active)return;unloadCharts();container.replace
   const c=details?.counters?.[selected];const props=(geo?.features||[]).find(f=>String(f.properties?.id)===selected)?.properties||{};
   const head=document.createElement('div');head.className='dp-ruch-counter-description';
   const title=document.createElement('strong');title.textContent=c?.name||props.name||selected;head.append(title);
-  const desc=props.lead||props.description;if(desc){const p=document.createElement('p');p.textContent=desc;head.append(p);}
+  for(const [value,cls] of [[props.lead,'dp-ruch-lead'],[props.description,'dp-ruch-description']]){if(value){const p=document.createElement('p');p.className=cls;p.textContent=value;head.append(p);}}
   const back=document.createElement('button');back.type='button';back.className='dp-ruch-reset';back.textContent='↺ Resetuj wybór';back.onclick=()=>selectCounter('');head.append(back);status.append(head);
  }
  if(selected&&details?.counters?.[selected])drawDetails();else{
