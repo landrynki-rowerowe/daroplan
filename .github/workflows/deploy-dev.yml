@@ -84,6 +84,32 @@ jobs:
 
           echo "KATALOG DEV OK"
 
+      - name: Utworz kopie mapa-dev przed wdrozeniem
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -e ssh \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 \
+            -p "$PORT" \
+            "$USER@$HOST" \
+            'set -eu
+             cd "$HOME/rowerowy.otwartyplan.org"
+             test -d public_html/mapa-dev
+             test ! -L public_html/mapa-dev
+             test -s public_html/mapa-dev/index.html
+             mkdir -p backup-daroplan
+             DATE=$(date -u +%Y%m%d-%H%M%S)
+             ARCHIVE="backup-daroplan/mapa-dev-$DATE.tar.gz"
+             tar -czf "$ARCHIVE" -C public_html mapa-dev
+             test -s "$ARCHIVE"
+             echo "BACKUP DEV OK: $ARCHIVE"'
+
       - name: Publikuj pliki DEV
         env:
           HOST: ${{ secrets.SSH_HOST }}
