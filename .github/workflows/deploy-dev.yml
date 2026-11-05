@@ -29,7 +29,7 @@ jobs:
           test -s index.html
           test -s js/app.js
           test -d css
-          test -d data
+          test -d api
           echo "PLIKI OK"
 
       - name: Zainstaluj sshpass
@@ -97,8 +97,7 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -P "$PORT" \
             -r \
-            index.html css js data \
-            index.html css js data api \
+            index.html css js api \
             "$USER@$HOST:rowerowy.otwartyplan.org/public_html/mapa-dev/"
 
           echo "PLIKI PRZESLANE"
