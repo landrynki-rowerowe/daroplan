@@ -1,0 +1,16 @@
+/* 0.9.8c: tylko na telefonach. Pozycja menu jest niezmienna, gdy menu jest widoczne. */
+@media (max-width: 700px) {
+  .bottom-nav {
+    transition: translate 210ms cubic-bezier(.2,.7,.25,1), opacity 210ms ease !important;
+    will-change: translate;
+  }
+  .bottom-nav.dp-nav-auto-hidden {
+    /* translate jest niezależne od istniejącego transform:translateX(-50%). */
+    translate: 0 calc(100% + 45px);
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) {
+  .bottom-nav { transition: none !important; }
+}

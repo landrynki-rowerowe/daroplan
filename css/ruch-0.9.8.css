@@ -1,0 +1,13 @@
+/* Wyłącznie uzupełnienie prezentacji RUCH. Dotychczasowe układy mapy pozostają bez zmian. */
+.dp-ruch-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0}
+.dp-ruch-metric{padding:11px;border:1px solid rgba(125,125,125,.22);border-radius:10px;display:flex;flex-direction:column;gap:5px;min-width:0;background:rgba(125,125,125,.045)}
+.dp-ruch-metric small{font-size:11px;opacity:.77;line-height:1.4}
+.dp-ruch-metric strong{font-size:19px;line-height:1.25;overflow-wrap:anywhere}
+.dp-ruch-metric span{font-size:11px;line-height:1.4;opacity:.78}
+.dp-ruch-exports{display:flex;justify-content:flex-end;gap:6px;margin:6px 0 13px}
+.dp-ruch-exports button{font:inherit;font-size:12px;padding:5px 10px;border:1px solid #abb5c0;background:transparent;color:inherit;border-radius:6px;cursor:pointer}
+.dp-ruch-exports button:hover{background:rgba(13,110,253,.1)}
+@media(max-width:410px){.dp-ruch-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.dp-ruch-metric{padding:8px}.dp-ruch-metric strong{font-size:16px}}
+
+/* Czytelne porównania procentowe w wąskim panelu */
+.dp-ruch-metric .dp-ruch-comparison{font-size:12px;line-height:1.55;font-weight:600;opacity:1;color:#176bb1;overflow-wrap:anywhere}

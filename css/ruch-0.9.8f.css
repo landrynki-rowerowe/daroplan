@@ -1,0 +1,19 @@
+/* DaRoPlan 0.9.8f — wyłącznie dwa korekty wyglądu panelu RUCH */
+.dp-ruch-metric strong.dp-ruch-positive { color:#198754 !important; }
+.dp-ruch-metric strong.dp-ruch-negative { color:#dc3545 !important; }
+.dp-ruch-metric small,
+.dp-ruch-metric .dp-ruch-meta { color:inherit !important; }
+.dp-ruch-counter-heading { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.dp-ruch-counter-heading .dp-ruch-reset,
+.dp-ruch-counter-description .dp-ruch-reset {
+  display:inline-flex !important;
+  align-items:center;
+  justify-content:center;
+  align-self:center;
+  flex:0 0 auto !important;
+  width:max-content !important;
+  min-width:0 !important;
+  max-width:100%;
+  margin:0 !important;
+  white-space:nowrap;
+}

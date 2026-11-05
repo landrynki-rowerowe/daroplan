@@ -1,0 +1,8 @@
+/* 0.9.3: cykliczny przełącznik podkładów. Pierwszy kwadrat jest częścią paska. */
+.dp-base-control{position:fixed;left:14px;top:78px;z-index:76;display:flex;align-items:center;gap:0}
+.dp-base-trigger,.dp-base-options button{box-sizing:border-box;border:2px solid #fff;background:#fff;padding:0;box-shadow:0 3px 14px #1b293c38;cursor:pointer;overflow:hidden;width:54px;height:54px;border-radius:13px;flex:0 0 54px}
+.dp-base-trigger img,.dp-base-options img{width:100%;height:100%;display:block;object-fit:cover}
+.dp-base-trigger:focus-visible,.dp-base-options button:focus-visible{outline:3px solid #1765a5;outline-offset:2px}
+.dp-base-options{display:none;align-items:center;gap:7px;padding-left:7px;background:transparent}
+.dp-base-control.open .dp-base-options{display:flex}
+@media(max-width:650px){.dp-base-control{top:75px;left:10px}.dp-base-trigger,.dp-base-options button{width:46px;height:46px;flex-basis:46px}.dp-base-options{gap:5px;padding-left:5px}}

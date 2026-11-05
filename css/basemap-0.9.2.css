@@ -1,0 +1,11 @@
+/* DaRoPlan 0.9.2: niezależny przełącznik podkładów pod logo */
+.dp-base-control{position:fixed;left:14px;top:78px;z-index:76;display:flex;align-items:flex-start;gap:8px}
+.dp-base-trigger,.dp-base-options button{border:2px solid #fff;background:#fff;padding:0;box-shadow:0 3px 14px #1b293c38;cursor:pointer;overflow:hidden}
+.dp-base-trigger{width:54px;height:54px;border-radius:13px;flex-shrink:0}
+.dp-base-trigger img,.dp-base-options img{width:100%;height:100%;display:block;object-fit:cover}
+.dp-base-trigger:focus-visible,.dp-base-options button:focus-visible{outline:3px solid #1765a5;outline-offset:2px}
+.dp-base-options{display:none;align-items:center;gap:7px;padding:5px;border:1px solid #dce2e5;background:#ffffffef;box-shadow:0 5px 18px #192d3340;border-radius:13px}
+.dp-base-control.open .dp-base-options{display:flex}
+.dp-base-options button{width:62px;height:62px;border-radius:10px;position:relative}
+.dp-base-options button.active{outline:3px solid #2077ba;outline-offset:-3px}
+@media(max-width:650px){.dp-base-control{top:75px;left:10px}.dp-base-trigger{width:46px;height:46px}.dp-base-options button{width:49px;height:49px}.dp-base-options{gap:5px}}

@@ -1,0 +1,10 @@
+/* DaRoPlan 0.9.5a: panel boczny z krawędziową zakładką. */
+#layersBtn.dp-panel-tab {position:fixed;top:44%;right:0;z-index:125;width:29px;height:76px;padding:0;border:1px solid rgba(40,60,70,.18);border-right:0;border-radius:10px 0 0 10px;background:rgba(255,255,255,.96);box-shadow:-2px 0 13px rgba(0,0,0,.13);color:#34545b;font-size:27px;line-height:1;cursor:pointer;transition:right .24s ease,background .2s ease;display:flex;justify-content:center;align-items:center}
+#layersBtn.dp-panel-tab:hover{background:#e9f3f3}
+#layersBtn.dp-panel-tab:focus-visible{outline:3px solid #2875dd;outline-offset:-3px}
+body.panel-open #layersBtn.dp-panel-tab {border-radius:10px 0 0 10px}
+/* Własny przełącznik: czy wskazana warstwa ma pozostać na innych mapach tematycznych */
+.dp-overlay-pin {display:inline-flex;gap:4px;align-items:center;margin-left:auto;padding-left:9px;font-size:11px;white-space:nowrap;color:#536267}
+.dp-overlay-pin input{width:13px;height:13px;accent-color:#245a63}
+.bottom-nav{z-index:140!important}
+@media(max-width:700px){#layersBtn.dp-panel-tab{top:34%;width:32px;height:68px;z-index:126}.dp-overlay-pin{white-space:normal;font-size:10px}}
