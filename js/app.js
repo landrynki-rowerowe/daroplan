@@ -116,6 +116,8 @@ const sources={
  residences:{type:'vector',url:'mapbox://ibikekrk.cm47h9e3y0myo1ut9x4uuehes-1jj7n'},
  velo:{type:'geojson',data:'data/velomalopolska.geojson'},
  veloObjazdy:{type:'geojson',data:'data/velo-objazdy.geojson'},
+ crossingsZdmk:{type:'geojson',data:'data/przejazdy-zdmk.geojson'},
+ crossingsSocial:{type:'geojson',data:'data/propozycje-spoleczne.geojson'},
  audytyOtwarte:{type:'geojson',data:{type:'FeatureCollection',features:[]}},
  audytyZamkniete:{type:'geojson',data:{type:'FeatureCollection',features:[]},cluster:true,clusterRadius:45,clusterMaxZoom:13}
 };
@@ -157,6 +159,7 @@ const layerGroups=[
  {id:'sim',title:'Trasy SIM — koncepcja'},
  {id:'velo',title:'VeloMałopolska'},
  {id:'audyty',title:'Audyty rowerowe ZTP'},
+ {id:'crossings',title:'Gładkie przejazdy'},
  {id:'residences',title:'Zameldowania'}
 ];
 function line(id,source,sourceLayer,color,filter,dash,width=3){const layer={id:'dp-'+id,type:'line',source,paint:{'line-color':color,'line-width':['interpolate',['linear'],['zoom'],9,Math.max(.65,width*.30),11,Math.max(.85,width*.42),13.5,width*.75,16,width*1.30],'line-opacity':.93}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;if(dash)layer.paint['line-dasharray']=dash;layer.layout={'line-cap':'round','line-join':'round'};return layer;}
@@ -232,6 +235,16 @@ add('velo-objazdy-punkty',{
  paint:{'circle-radius':['interpolate',['linear'],['zoom'],9,4.5,13,6,16,8],
  'circle-color':'#fc8b24','circle-stroke-color':'#fff','circle-stroke-width':2}
 },'velo-objazdy');
+// Gładkie przejazdy: dwa GeoJSON-y i pięć kategorii odczytanych z Google My Maps.
+const crossingColors=['match',['get','category'],
+ 'zdmk','#2878d0','remont','#ee8b27','propozycja','#db4242',
+ 'priorytet','#904ac3','nzdr','#858b94','#777777'];
+for(const [id,src] of [['crossings-zdmk','dp-crossingsZdmk'],['crossings-social','dp-crossingsSocial']]){
+ add(id,{id:'dp-'+id,type:'circle',source:src,
+  paint:{'circle-radius':['interpolate',['linear'],['zoom'],9,4,12,5,15,7,16,8],
+   'circle-color':crossingColors,'circle-stroke-color':'#ffffff','circle-stroke-width':1.8,
+   'circle-opacity':.97}},'crossings');
+}
 // Zamknięte audyty mogą być klastrowane; otwarte zawsze są pojedynczymi punktami.
 add('audyty-zamkniete-klastry',{
  id:'dp-audyty-zamkniete-klastry',type:'circle',source:'dp-audytyZamkniete',filter:['has','point_count'],
@@ -632,7 +645,7 @@ function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.i
   .catch(err=>{console.warn('[DaRoPlan] Pełny odcinek VeloM niedostępny',err);if(activeFeature===clicked)highlightFeature(clicked)});
 }else if(group==='dasie'){
  if(!highlightDasieGroup(f))highlightFeature(f);
-}else highlightFeature(f);const p=f.properties||{};if(group==='velo-objazdy'){const extra=document.createElement('div');if(p.description)extra.append(linkedDescription(String(p.description)));extra.append(textNode('p','Uwaga: wpis może być archiwalny. Zweryfikuj bieżącą sytuację.','source-credit'));showPanel(p.name||'Objazd / utrudnienie','VeloM — objazdy i utrudnienia',{},extra);return;}if(group==='audyty'){const extra=document.createElement('div');if(p.publish_date)extra.append(textNode('p','Opublikowano: '+String(p.publish_date).slice(0,10)));if(p.modified_date)extra.append(textNode('p','Zmodyfikowano: '+String(p.modified_date).slice(0,10)));if(typeof p.link==='string'&&/^https:\/\//i.test(p.link))extra.append(link('Otwórz audyt ZTP ↗',p.link));showPanel(p.title||'Audyt rowerowy',p.categories||'Audyt ZTP',{},extra);return;}if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'&&p.tweet_id){const tweetId=String(p.tweet_id).trim();extra.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));const embed=document.createElement('div');embed.className='tweet-embed';extra.append(embed);showPanel(label,'DASIE — archiwum',p,extra);renderTweet(tweetId,embed);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
+}else highlightFeature(f);const p=f.properties||{};if(group==='velo-objazdy'){const extra=document.createElement('div');if(p.description)extra.append(linkedDescription(String(p.description)));extra.append(textNode('p','Uwaga: wpis może być archiwalny. Zweryfikuj bieżącą sytuację.','source-credit'));showPanel(p.name||'Objazd / utrudnienie','VeloM — objazdy i utrudnienia',{},extra);return;}if(group==='crossings'){const extra=document.createElement('div');const names={zdmk:'Wykonane przez ZDMK',remont:'Trwa remont / budowa',propozycja:'Propozycja społeczna',priorytet:'Priorytet — do zrobienia',nzdr:'Wykonane przez NZDR'};if(p.description)extra.append(linkedDescription(String(p.description)));else extra.append(textNode('p','Brak dodatkowego opisu.'));extra.append(textNode('p','Źródło: mapa gładkich przejazdów / Google My Maps','source-credit'));showPanel(p.name||'Gładki przejazd',names[p.category]||'Gładkie przejazdy',{},extra);return;}if(group==='audyty'){const extra=document.createElement('div');if(p.publish_date)extra.append(textNode('p','Opublikowano: '+String(p.publish_date).slice(0,10)));if(p.modified_date)extra.append(textNode('p','Zmodyfikowano: '+String(p.modified_date).slice(0,10)));if(typeof p.link==='string'&&/^https:\/\//i.test(p.link))extra.append(link('Otwórz audyt ZTP ↗',p.link));showPanel(p.title||'Audyt rowerowy',p.categories||'Audyt ZTP',{},extra);return;}if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'&&p.tweet_id){const tweetId=String(p.tweet_id).trim();extra.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));const embed=document.createElement('div');embed.className='tweet-embed';extra.append(embed);showPanel(label,'DASIE — archiwum',p,extra);renderTweet(tweetId,embed);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
 
 function renderTweet(id,container){
   const embed=()=>{if(!window.twttr?.widgets?.createTweet)return false;
@@ -646,7 +659,7 @@ const moduleLayerIds={
  ruch:['counters'],
  historia:['dasie','construction'],
  trasy:['velo','velo-ddr','velo-droga','velo-inna','velo-budowa','velo-plan','velo-nieokreslone','velo-objazdy','sim','study'],
- wiecej:['audyty','tempoLines','tempo20','residences']
+ wiecej:['audyty','crossings','tempoLines','tempo20','residences']
 };
 const moduleTitles={infra:'INFRAstruktura',ruch:'Ruch',historia:'STORY',trasy:'Trasy',wiecej:'Więcej'};
 const defaults={
@@ -683,13 +696,13 @@ const addonLayers=['audyty','tempoLines','tempo20'];
 // Parametry: b = podkład, m = moduł, l = dokładna lista włączonych warstw.
 // Stabilna kolejność pól kodu 1.xxxxxxx (28 warstw = 7 cyfr HEX).
 // Nie zmieniać kolejności: zapisane wcześniej URL-e muszą nadal działać.
-// Dla nowych warstw należy w przyszłości zdefiniować wersję 2.
+// Warstwa crossings jest kodowana w wersji 2; dekoder pozostaje zgodny z wersją 1.
 const compactLayerOrder=[
  'infra','suggestions','construction','ddr','cpr','allowed','pas','contra',
  'stojaki','shelters','supports','repairs','counters','dasie',
  'velo','velo-ddr','velo-droga','velo-inna','velo-budowa','velo-plan',
  'velo-nieokreslone','velo-objazdy','sim','study',
- 'audyty','tempoLines','tempo20','residences'
+ 'audyty','tempoLines','tempo20','residences','crossings'
 ];
 const urlLayerIds=new Set(compactLayerOrder);
 function encodeCompactLayers(){
@@ -699,13 +712,14 @@ function encodeCompactLayers(){
   for(let bit=0;bit<4;bit++)if(selection.has(compactLayerOrder[i+bit]))n|=1<<bit;
   result+=n.toString(16);
  }
- return '1.'+result;
+ return '2.'+result;
 }
 function decodeCompactLayers(value){
- if(!/^1\.[0-9a-f]{7}$/i.test(value))return null;
+ if(!/^(?:1\.[0-9a-f]{7}|2\.[0-9a-f]{8})$/i.test(value))return null;
  const active=[];
  const hex=value.slice(2);
- for(let i=0;i<compactLayerOrder.length;i++){
+ const count=value.startsWith('1.')?28:compactLayerOrder.length;
+ for(let i=0;i<count;i++){
   const nibble=parseInt(hex[Math.floor(i/4)],16);
   if(nibble&(1<<(i%4)))active.push(compactLayerOrder[i]);
  }
@@ -719,7 +733,7 @@ function restoreSharedView(){
  if(params.has('l')){
   const raw=params.get('l');
   // Obsługa obu formatów: nowy krótki 1.xxxxxxx oraz wcześniejsze linki z listą.
-  const saved=raw.startsWith('1.')?decodeCompactLayers(raw):raw.split(',').filter(id=>urlLayerIds.has(id));
+  const saved=/^[12]\./.test(raw)?decodeCompactLayers(raw):raw.split(',').filter(id=>urlLayerIds.has(id));
   if(saved!==null){
    selection.clear();for(const id of saved)selection.add(id);
   }
@@ -794,6 +808,11 @@ function renderControls(){
  }}
  if(mode!=='wiecej'){const label=textNode('h3','Dodatkowe nakładki');box.append(label);for(const id of addonLayers){const group=layerGroups.find(layer=>layer.id===id);if(group)box.append(row(id,group.title))}}
  if(mode==='wiecej'){
+  const crossingLegend=[['#2878d0','Wykonane przez ZDMK'],['#ee8b27','Trwa remont / budowa'],['#db4242','Propozycje społeczne'],['#904ac3','Priorytet — do zrobienia'],['#858b94','Wykonane przez NZDR']];
+  const block=document.createElement('div');block.className='infra-children';
+  block.append(textNode('div','Gładkie przejazdy — legenda','fixed-layer-note'));
+  for(const [color,label] of crossingLegend){const entry=textNode('div','','layer-line');const dot=document.createElement('span');dot.setAttribute('aria-hidden','true');dot.style.cssText='display:inline-block;width:12px;height:12px;border-radius:50%;background:'+color+';border:1px solid #fff;box-shadow:0 0 0 1px #777;flex:none';entry.append(dot,textNode('span',label));block.append(entry);}
+  box.append(block);
   const help=textNode('p','Warstwy specjalistyczne można nakładać na pozostałe mapy tematyczne.','note');box.prepend(help);
  }
  const fixed=document.createElement('div');fixed.className='fixed-layer-note';fixed.append(swatch('#777','dashed'),textNode('span','Granice Krakowa — zawsze widoczne'));box.append(fixed);
