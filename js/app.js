@@ -32,6 +32,7 @@ function syncMobileSheet(animate=true){
 }
 function setMobileSheet(state,animate=true){
  if(!isMobileSheet())return;
+ if(state==='hidden'&&mobileSheet.state!=='hidden')window.DPLandrynki?.onPanelHide();
  mobileSheet.state=state;
  ui.panel.classList.remove('hidden','expanded');
  document.body.classList.toggle('panel-open',state!=='hidden');
@@ -563,7 +564,7 @@ function updatePanelTab(){
  const small=window.matchMedia('(max-width:700px)').matches;
  btn.style.right=(!small&&opened)?Math.max(0,window.innerWidth-rect.left-1)+'px':'0px';
 }
-function closePanel(){if(isMobileSheet()){setMobileSheet('hidden');return;}ui.panel.classList.remove('welcome-view');clearFeatureHighlight();ui.panel.classList.add('hidden');document.body.classList.remove('panel-open');$('layersBtn').setAttribute('aria-expanded','false');updatePanelTab();updatePanelCamera();}
+function closePanel(){if(isMobileSheet()){setMobileSheet('hidden');return;}window.DPLandrynki?.onPanelHide();ui.panel.classList.remove('welcome-view');clearFeatureHighlight();ui.panel.classList.add('hidden');document.body.classList.remove('panel-open');$('layersBtn').setAttribute('aria-expanded','false');updatePanelTab();updatePanelCamera();}
 // Panel powitalny: nie miesza się z konfiguracją warstw ani z zaznaczeniem obiektu.
 const welcomeSlides=[
  {title:'Landrynki Rowerowe',body:'Zobacz przejazdy przez krakowskie skrzyżowania. Kolorowe punkty prowadzą do filmów z tras.',mode:'historia',action:'Odkryj Landrynki',landrynki:true},
@@ -596,7 +597,7 @@ function showWelcome(index=0){
    const item=list[0],card=textNode('button','','dp-landrynki-card');card.type='button';
    if(item.featuredImageUrl){const img=document.createElement('img');img.src=item.featuredImageUrl;img.alt='';img.loading='lazy';card.append(img)}
    const content=textNode('span','','dp-landrynki-card-text');content.append(textNode('strong',item.title),textNode('small',item.excerpt||item.routeCount+' przejazdy'));card.append(content);
-   card.onclick=()=>{configureModes('historia');activateLandrynkiOverlay();window.DPLandrynki?.open(item.id)};
+   card.onclick=()=>{configureModes('historia');openLandrynki()};
    root.insertBefore(card,nav);
   }).catch(err=>console.warn('[Landrynki] Karta powitalna:',err));
  }
