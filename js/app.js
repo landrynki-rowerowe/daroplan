@@ -357,14 +357,21 @@ function highlightDasieGroup(feature,moveCamera=true){
    else if(item.geometry?.type==='LineString')points.push(...item.geometry.coordinates);
   }
   if(points.length){
-   const p=panelPadding();
-   const padding={left:55,right:Math.max(p.right+45,55),top:90,bottom:isMobileSheet()?Math.max(p.bottom,135):90};
-   if(points.every(c=>c[0]===points[0][0]&&c[1]===points[0][1]))
-    map.easeTo({center:points[0],zoom:Math.max(map.getZoom(),15),padding,duration:600});
-   else{
-    const bounds=points.reduce((b,c)=>b.extend(c),new mapboxgl.LngLatBounds(points[0],points[0]));
-    map.fitBounds(bounds,{padding,maxZoom:15.4,duration:650});
-   }
+   // Panel z wpisem X otwiera się po kliknięciu. Kadruj dopiero po otwarciu.
+   requestAnimationFrame(()=>{
+    if(selectedDasieTweetId!==tweetId||!map.getSource('dp-dasieCms'))return;
+    const p=panelPadding();
+    const height=map.getCanvas().clientHeight;
+    const panelBottom=isMobileSheet()&&mobileSheet.state!=='hidden'?Math.ceil(mobileSheetHeight()+24):0;
+    const bottom=isMobileSheet()?Math.min(Math.max(0,height-140),Math.max(p.bottom,panelBottom,110)):90;
+    const padding={left:55,right:Math.max(p.right+45,55),top:65,bottom};
+    if(points.every(c=>c[0]===points[0][0]&&c[1]===points[0][1]))
+     map.easeTo({center:points[0],zoom:Math.max(map.getZoom(),15),padding,duration:600});
+    else{
+     const bounds=points.reduce((b,c)=>b.extend(c),new mapboxgl.LngLatBounds(points[0],points[0]));
+     map.fitBounds(bounds,{padding,maxZoom:15.4,duration:650});
+    }
+   });
   }
  }
  return true;
@@ -568,7 +575,7 @@ function updateBaseControl(){
    img.alt='Podkład '+name+' — centrum Krakowa';
  });
 }
-function setBase(b){const internal=baseNames[b]||b;if(!cfg.basemaps[internal]||internal===base)return;clearFeatureHighlight();base=internal;loadingSequence++;map.setStyle(cfg.basemaps[internal],{diff:false});const url=new URL(location.href);url.searchParams.set('b',basePublic[base]);updateShareURL();updateBaseControl();}
+function setBase(b){const internal=baseNames[b]||b;if(!cfg.basemaps[internal]||internal===base)return;if(!selectedDasieTweetId)clearFeatureHighlight();base=internal;loadingSequence++;map.setStyle(cfg.basemaps[internal],{diff:false});const url=new URL(location.href);url.searchParams.set('b',basePublic[base]);updateShareURL();updateBaseControl();}
 function setupBaseControl(){
  const root=$('baseControl'),trigger=$('baseTrigger'),options=$('baseOptions');
  const close=()=>{root.classList.remove('open');trigger.setAttribute('aria-expanded','false')};
