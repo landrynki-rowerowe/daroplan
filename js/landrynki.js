@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const API=()=>window.DPLandrynkiAPI;
-let map=null,show=null,active=false,items=[],selected=null,packageData=null,frame=0,last=0;
+let map=null,show=null,active=false,items=[],selected=null,packageData=null,frame=0,last=0,revision=0;
 const el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n};
 const rad=Math.PI/180;
 function meters(a,b){const x=(b[0]-a[0])*rad*Math.cos((a[1]+b[1])*rad/2)*6371000,y=(b[1]-a[1])*rad*6371000;return Math.hypot(x,y)}
@@ -45,7 +45,7 @@ function render(){
   if(route.description)wrap.append(el('p','dp-landrynki-description',route.description));
  }else{
   // Opis HTML z CMS wyświetlamy jako tekst; nie wstawiamy niezweryfikowanego HTML.
-  if(packageData.descriptionHtml){const plain=el('div');plain.innerHTML=packageData.descriptionHtml;wrap.append(el('p','dp-landrynki-description',plain.textContent||''));}
+  if(packageData.descriptionHtml){const text=new DOMParser().parseFromString(packageData.descriptionHtml,'text/html').body.textContent||'';wrap.append(el('p','dp-landrynki-description',text));}
   const grid=el('div','dp-landrynki-thumbs');
   for(const route of packageData.routes){
    const b=el('button','dp-landrynki-thumb');b.type='button';b.title=route.name;b.setAttribute('aria-label','Pokaż przejazd: '+route.name);b.style.borderColor=route.color;
@@ -57,7 +57,7 @@ function render(){
  show(packageData.title,wrap);
 }
 function clear(){
- cancelAnimationFrame(frame);frame=0;last=0;for(const obj of items)obj.marker.remove();items=[];active=false;selected=null;packageData=null;
+ revision++;cancelAnimationFrame(frame);frame=0;last=0;for(const obj of items)obj.marker.remove();items=[];active=false;selected=null;packageData=null;
 }
 function addMarkers(data){
  for(const route of data.routes){
@@ -77,24 +77,26 @@ function framePackage(){
 }
 async function open(id){
  if(!map||!API())return;
- clear();
+ clear();const current=revision;
  try{
   const data=await API().detail(id);
+  if(current!==revision)return;
   if(!data.routes.length)throw Error('Brak poprawnych tras w tej paczuszce');
   packageData=data;active=true;addMarkers(data);render();framePackage();frame=requestAnimationFrame(loop);
- }catch(err){console.warn('[Landrynki]',err);if(show)show('Landrynki',el('p','','Nie udało się wczytać paczuszki. Sprawdź API i uprawnienia CORS.'));}
+ }catch(err){if(current!==revision)return;console.warn('[Landrynki]',err);if(show)show('Landrynki',el('p','','Nie udało się wczytać paczuszki. Sprawdź API i uprawnienia CORS.'));}
 }
 async function choose(){
  if(!map||!API())return;
+ clear();const current=revision;
  try{
-  const list=await API().list();if(!list.length){show('Landrynki',el('p','','Brak opublikowanych paczuszek.'));return}
+  const list=await API().list();if(current!==revision)return;if(!list.length){show('Landrynki',el('p','','Brak opublikowanych paczuszek.'));return}
   const box=el('div','dp-landrynki-list');
   for(const item of list){const b=el('button','dp-landrynki-card');b.type='button';
    if(item.featuredImageUrl){const img=el('img');img.src=item.featuredImageUrl;img.alt='';img.loading='lazy';b.append(img)}
    const content=el('span','dp-landrynki-card-text');content.append(el('strong','',item.title),el('small','',item.excerpt||item.routeCount+' przejazdy'));b.append(content);b.onclick=()=>open(item.id);box.append(b)}
   show('Landrynki Rowerowe',box);
   if(list.length===1)open(list[0].id);
- }catch(err){console.warn('[Landrynki]',err);show('Landrynki',el('p','','Nie można pobrać Landrynek z WordPressa (możliwy problem CORS).'));}
+ }catch(err){if(current!==revision)return;console.warn('[Landrynki]',err);show('Landrynki',el('p','','Nie można pobrać Landrynek z WordPressa (możliwy problem CORS).'));}
 }
 window.DPLandrynki=Object.freeze({init(m,renderPanel){map=m;show=renderPanel},choose,open,deactivate:clear,isActive:()=>active});
 })();
