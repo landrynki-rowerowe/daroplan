@@ -8,3 +8,6 @@ body.panel-open #layersBtn.dp-panel-tab {border-radius:10px 0 0 10px}
 .dp-overlay-pin input{width:13px;height:13px;accent-color:#245a63}
 .bottom-nav{z-index:140!important}
 @media(max-width:700px){#layersBtn.dp-panel-tab{top:34%;width:32px;height:68px;z-index:126}.dp-overlay-pin{white-space:normal;font-size:10px}}
+
+@media (min-width:701px){#infoPanel.info-panel{border-radius:24px 0 0 24px}}
+#map.dp-contrast-overlays .user-location-dot{border:0;background:#69b8ff;box-shadow:0 2px 9px #0008}

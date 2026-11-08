@@ -5,7 +5,18 @@ window.DAROPLAN_CONFIG = {
   basemaps: {
     original:'mapbox://styles/ibikekrk/ckk79v1nk06y617o6t7xy00ck',
     light:'mapbox://styles/mapbox/light-v11',
-    satellite:'mapbox://styles/mapbox/satellite-streets-v12'
+    satellite:'mapbox://styles/mapbox/satellite-streets-v12',
+    night:{
+      version:8,
+      glyphs:'mapbox://fonts/mapbox/{fontstack}/{range}.pbf',
+      imports:[{
+        id:'basemap',
+        url:'mapbox://styles/mapbox/standard',
+        config:{lightPreset:'night',theme:'monochrome',showPointOfInterestLabels:false}
+      }],
+      sources:{},
+      layers:[]
+    }
   },
   home: [19.94765281677246,50.061712298362735],
   zoom:12,
