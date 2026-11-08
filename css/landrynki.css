@@ -20,3 +20,13 @@
 .dp-landrynki-card-text strong{font-size:15px}
 .dp-landrynki-card-text small{font-size:13px;color:#64747d}
 @media(max-width:700px){.dp-landrynki-thumbs{gap:12px 8px}.dp-landrynki-dot{width:25px;height:25px}}
+
+/* Paczuszki jako nieruchome punkty wejściowe na mapie, oddzielone od animowanych przejazdów. */
+.dp-landrynki-package-pin{
+ display:grid;place-items:center;width:42px;height:42px;line-height:1;font-size:23px;
+ background:#fff;border:2px solid #295f70;border-radius:50%;box-shadow:0 2px 9px #1116;
+ cursor:pointer;transition:transform .15s ease;
+}
+.dp-landrynki-package-pin:hover{transform:scale(1.13)}
+.dp-landrynki-package-pin:focus-visible{outline:3px solid #2177e5;outline-offset:3px}
+.dp-landrynki-package-pin[hidden]{display:none}
