@@ -132,7 +132,8 @@ function addPackagePin(data,label){
  let minLon=Infinity,minLat=Infinity,maxLon=-Infinity,maxLat=-Infinity;
  for(const [lon,lat] of points){minLon=Math.min(minLon,lon);minLat=Math.min(minLat,lat);maxLon=Math.max(maxLon,lon);maxLat=Math.max(maxLat,lat)}
  const center=[(minLon+maxLon)/2,(minLat+maxLat)/2];
- const button=el('button','dp-landrynki-package-pin','🍬');
+ const button=el('button','dp-landrynki-package-pin');
+ const avatar=el('img','dp-landrynki-package-avatar');avatar.src='assets/landrynki-avatar.jpg';avatar.alt='';avatar.width=44;avatar.height=44;avatar.draggable=false;button.append(avatar);
  button.type='button';button.title='Landrynki: '+label;button.setAttribute('aria-label','Otwórz paczuszkę Landrynek: '+label);
  button.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();open(data.id)});
  const marker=new mapboxgl.Marker({element:button,anchor:'bottom'}).setLngLat(center).addTo(map);
