@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const API=()=>window.DPLandrynkiAPI;
-let map=null,show=null,active=false,items=[],selected=null,packageData=null,frame=0,last=0,revision=0;
+let map=null,show=null,onExit=null,active=false,items=[],selected=null,packageData=null,frame=0,last=0,revision=0;
 const el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n};
 const rad=Math.PI/180;
 function meters(a,b){const x=(b[0]-a[0])*rad*Math.cos((a[1]+b[1])*rad/2)*6371000,y=(b[1]-a[1])*rad*6371000;return Math.hypot(x,y)}
@@ -19,7 +19,7 @@ function loop(time){
  if(!active)return;
  const delta=last?Math.min(80,time-last):0;last=time;
  for(const obj of items){
-  obj.distance=(obj.distance||0)+delta/1000*5;
+  obj.distance=(obj.distance||0)+delta/1000*15;
   obj.marker.setLngLat(locate(obj,obj.distance));
  }
  frame=requestAnimationFrame(loop);
@@ -28,6 +28,7 @@ function opacity(){
  for(const o of items)o.marker.getElement().style.opacity=selected&&selected!==o.route.id?'0.5':'1';
 }
 function back(){selected=null;opacity();render()}
+function exitLandrynki(){clear();onExit?.();}
 function pick(id){selected=id;opacity();render()}
 function render(){
  if(!active||!packageData||!show)return;
@@ -44,6 +45,7 @@ function render(){
   }else wrap.append(el('p','','Brak filmu dla tego przejazdu.'));
   if(route.description)wrap.append(el('p','dp-landrynki-description',route.description));
  }else{
+  const exitButton=el('button','dp-landrynki-back','←');exitButton.type='button';exitButton.setAttribute('aria-label','Wróć do STORY i zakończ Landrynki');exitButton.title='Powrót do STORY';exitButton.onclick=exitLandrynki;wrap.append(exitButton);
   // Opis HTML z CMS wyświetlamy jako tekst; nie wstawiamy niezweryfikowanego HTML.
   if(packageData.descriptionHtml){const text=new DOMParser().parseFromString(packageData.descriptionHtml,'text/html').body.textContent||'';wrap.append(el('p','dp-landrynki-description',text));}
   const grid=el('div','dp-landrynki-thumbs');
@@ -98,5 +100,5 @@ async function choose(){
   if(list.length===1)open(list[0].id);
  }catch(err){if(current!==revision)return;console.warn('[Landrynki]',err);show('Landrynki',el('p','','Nie można pobrać Landrynek z WordPressa (możliwy problem CORS).'));}
 }
-window.DPLandrynki=Object.freeze({init(m,renderPanel){map=m;show=renderPanel},choose,open,deactivate:clear,isActive:()=>active});
+window.DPLandrynki=Object.freeze({init(m,renderPanel,exitCallback){map=m;show=renderPanel;onExit=exitCallback},choose,open,deactivate:clear,isActive:()=>active});
 })();
