@@ -30,3 +30,7 @@
 .dp-landrynki-package-pin:hover{transform:scale(1.13)}
 .dp-landrynki-package-pin:focus-visible{outline:3px solid #2177e5;outline-offset:3px}
 .dp-landrynki-package-pin[hidden]{display:none}
+
+/* Wyróżnienie przejazdu odporne na zmianę podkładu Mapbox. */
+.dp-landrynki-dot.dp-landrynki-dimmed{opacity:.5!important}
+.dp-landrynki-dot:not(.dp-landrynki-dimmed){opacity:1!important}
