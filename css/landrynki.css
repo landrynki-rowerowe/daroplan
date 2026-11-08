@@ -9,7 +9,7 @@
 .dp-landrynki-back{align-self:flex-start;background:none;border:0;color:#485e69;font-size:24px;line-height:1;padding:6px 11px 6px 0}
 .dp-landrynki-back:hover{color:#145b92}
 .dp-landrynki-route-name{font-size:16px;overflow-wrap:anywhere;margin:0}
-.dp-landrynki-video{display:block;width:min(100%,300px);max-width:100%;aspect-ratio:9/16;height:auto;margin:0 auto;border:0;border-radius:11px;background:#20242a}
+.dp-landrynki-video{display:block;box-sizing:border-box;width:calc(100% - 16px);max-width:none;aspect-ratio:9/16;height:auto;margin:0 8px;border:0;border-radius:11px;background:#20242a}
 .dp-landrynki-description{font-size:14px;line-height:1.6;white-space:pre-line}
 .dp-landrynki-dot{width:21px;height:21px;border-radius:50%;border:3px solid white;background:var(--landrynki-color,#e34c54);box-shadow:0 1px 6px #0009;cursor:pointer;padding:0;transition:opacity 140ms}
 .dp-landrynki-dot:hover{transform:scale(1.18)}
