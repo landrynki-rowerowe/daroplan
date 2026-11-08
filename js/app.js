@@ -168,7 +168,42 @@ const layerGroups=[
 ];
 function line(id,source,sourceLayer,color,filter,dash,width=3){const layer={id:'dp-'+id,type:'line',source,paint:{'line-color':color,'line-width':['interpolate',['linear'],['zoom'],9,Math.max(.65,width*.30),11,Math.max(.85,width*.42),13.5,width*.75,16,width*1.30],'line-opacity':.93}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;if(dash)layer.paint['line-dasharray']=dash;layer.layout={'line-cap':'round','line-join':'round'};return layer;}
 function circle(id,source,sourceLayer,color,filter){const layer={id:'dp-'+id,type:'circle',source,paint:{'circle-radius':['interpolate',['linear'],['zoom'],9,2,11,3,13.5,4.5,16,8],'circle-color':color,'circle-stroke-width':['interpolate',['linear'],['zoom'],11,.8,13.5,1.3,16,1.8],'circle-stroke-color':'#fff','circle-opacity':.9}};if(sourceLayer)layer['source-layer']=sourceLayer;if(filter)layer.filter=filter;return layer;}
-function add(id,layer,group){try{if(!map.getLayer(layer.id))map.addLayer(layer);layerIndex.set(layer.id,group);map.setLayoutProperty(layer.id,'visibility',visibleGroup(group)?'visible':'none');}catch(e){console.warn('[DaRoPlan] Nie udało się dodać',id,e.message)}}
+function add(id,layer,group){try{if(!map.getLayer(layer.id))addOverlay(layer);layerIndex.set(layer.id,group);map.setLayoutProperty(layer.id,'visibility',visibleGroup(group)?'visible':'none');}catch(e){console.warn('[DaRoPlan] Nie udało się dodać',id,e.message)}}
+const overlayColors={
+ '#2632ef':'#69b8ff','#253bf0':'#69b8ff','#2456cb':'#62b5ff','#0d6efd':'#69b8ff',
+ '#159924':'#73eb91','#1ca65b':'#76e5a2','#00a676':'#54e5bd',
+ '#e32626':'#ff727f','#dc2424':'#ff727f','#db4242':'#ff727f',
+ '#ee9a12':'#ffd061','#f3a414':'#ffd061','#f47a20':'#ffab60','#ee8b27':'#ffab60',
+ '#ff8c24':'#ffab60','#fc8b24':'#ffab60','#0071ac':'#5cddff','#0e81a6':'#64e0ed',
+ '#2878d0':'#69b8ff','#c026d3':'#fa94ff','#9848ce':'#d2a0ff','#7d42b3':'#bfa7ef',
+ '#904ac3':'#d2a0ff','#858b94':'#cad3df','#777777':'#bac6d5','#818a94':'#a8b6c5','#9299a2':'#cad3df',
+ '#d71930':'#ff6b86','#79b97a':'#a5e39a','#3536af':'#8ca6ff','#00a6e4':'#62defc',
+ '#b15ba0':'#f1a2df','#135a36':'#5edea7','#eaa323':'#ffc35d','#80624e':'#edbd9a','#8d569b':'#d5a6eb',
+ '#ff3b30':'#ff5471'
+};
+const highContrastBase=()=>base==='night'||base==='satellite';
+function contrastColor(value){
+ if(!highContrastBase())return value;
+ if(Array.isArray(value))return value.map(contrastColor);
+ return typeof value==='string'?(overlayColors[value.toLowerCase()]??value):value;
+}
+function addOverlay(layer){
+ if(highContrastBase()&&layer.paint){
+  const paint={...layer.paint};
+  for(const key of ['line-color','circle-color','fill-color','text-color']){
+   if(paint[key]!==undefined)paint[key]=contrastColor(paint[key]);
+  }
+  if(layer.type==='circle')paint['circle-stroke-width']=0;
+  if(layer.id==='dp-oneway')paint['text-halo-width']=0;
+  if(layer.id==='dp-audyty-zamkniete-liczba')paint['text-color']='#172b37';
+  if(base==='night'&&['line','circle','symbol'].includes(layer.type)){
+   const property=layer.type==='symbol'?'text':layer.type;
+   paint[property+'-emissive-strength']=1;
+  }
+  layer={...layer,paint};
+ }
+ map.addLayer(layer);
+}
 const layerIndex=new Map();
 const fixedGroups=new Set(['borders']);
 function visibleGroup(group){return fixedGroups.has(group)||(group.startsWith('velo-')?selection.has('velo')&&selection.has(group):selection.has(group))}
@@ -347,7 +382,7 @@ function highlightDasieGroup(feature,moveCamera=true){
   {id:'dp-selected-dasie-line',type:'line',filter:['all',common,['==',['geometry-type'],'LineString']],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ff3b30','line-width':['interpolate',['linear'],['zoom'],9,2.7,13,5,16,8],'line-opacity':1}},
   {id:'dp-selected-dasie-point',type:'circle',filter:['all',common,['==',['geometry-type'],'Point']],paint:{'circle-radius':['interpolate',['linear'],['zoom'],9,6,13,10,16,14],'circle-color':'#ff3b30','circle-stroke-color':'#ffffff','circle-stroke-width':3,'circle-opacity':1}}
  ];
- try{for(const spec of specs){map.addLayer({...spec,source:'dp-dasieCms'});selectedOutlineIds.push(spec.id);}}
+ try{for(const spec of specs){if(highContrastBase()&&spec.id.endsWith('-halo'))continue;addOverlay({...spec,source:'dp-dasieCms'});selectedOutlineIds.push(spec.id);}}
  catch(e){console.warn('[DASIE] Podświetlenie niedostępne',tweetId,e);clearFeatureHighlight();return false;}
  if(moveCamera){
   // Uwzględniamy wszystkie geometrie tego tweeta, także poza kadrem.
@@ -386,18 +421,18 @@ function highlightFeature(feature){
  map.addSource('dp-selected',{type:'geojson',data});
  const type=geometry.type;
  if(type.includes('Line')){
-  map.addLayer({id:'dp-selected-line',type:'line',source:'dp-selected',paint:{'line-color':'#ffffff','line-width':10,'line-opacity':.95}});
-  map.addLayer({id:'dp-selected-center',type:'line',source:'dp-selected',paint:{'line-color':'#ff3b30','line-width':5,'line-opacity':1}});
-  selectedOutlineIds=['dp-selected-line','dp-selected-center'];
+  if(!highContrastBase())addOverlay({id:'dp-selected-line',type:'line',source:'dp-selected',paint:{'line-color':'#ffffff','line-width':10,'line-opacity':.95}});
+  addOverlay({id:'dp-selected-center',type:'line',source:'dp-selected',paint:{'line-color':'#ff3b30','line-width':5,'line-opacity':1}});
+  selectedOutlineIds=highContrastBase()?['dp-selected-center']:['dp-selected-line','dp-selected-center'];
  }else if(type.includes('Polygon')){
-  map.addLayer({id:'dp-selected-area',type:'fill',source:'dp-selected',paint:{'fill-color':'#ff3b30','fill-opacity':.22}});
-  map.addLayer({id:'dp-selected-edge',type:'line',source:'dp-selected',paint:{'line-color':'#ff3b30','line-width':4}});
+  addOverlay({id:'dp-selected-area',type:'fill',source:'dp-selected',paint:{'fill-color':'#ff3b30','fill-opacity':.22}});
+  addOverlay({id:'dp-selected-edge',type:'line',source:'dp-selected',paint:{'line-color':'#ff3b30','line-width':4}});
   selectedOutlineIds=['dp-selected-area','dp-selected-edge'];
  }else if(type.includes('Point')){
   const crossing=feature.layer?.id?.startsWith('dp-crossings-');
   const colorByCategory={zdmk:'#2878d0',remont:'#ee8b27',propozycja:'#db4242',priorytet:'#904ac3',nzdr:'#858b94'};
   const color=crossing?(colorByCategory[feature.properties?.category]||'#777777'):'#ff3b30';
-  map.addLayer({id:'dp-selected-point',type:'circle',source:'dp-selected',paint:{'circle-radius':13,'circle-color':color,'circle-stroke-color':crossing?'#454b54':'#fff','circle-stroke-width':crossing?3:4}});
+  addOverlay({id:'dp-selected-point',type:'circle',source:'dp-selected',paint:{'circle-radius':13,'circle-color':color,'circle-stroke-color':crossing?'#454b54':'#fff','circle-stroke-width':crossing?3:4}});
   selectedOutlineIds=['dp-selected-point'];
  }
  const pts=[];
@@ -440,9 +475,9 @@ function highlightWholeFeatures(features,selected){
  clearFeatureHighlight();activeFeature=selected;
  const fc={type:'FeatureCollection',features:features.map(f=>({type:'Feature',geometry:f.geometry,properties:{}}))};
  map.addSource('dp-selected',{type:'geojson',data:fc});
- map.addLayer({id:'dp-selected-line',type:'line',source:'dp-selected',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':9,'line-opacity':.93}});
- map.addLayer({id:'dp-selected-center',type:'line',source:'dp-selected',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ff3b30','line-width':4.5,'line-opacity':.98}});
- selectedOutlineIds=['dp-selected-line','dp-selected-center'];
+ if(!highContrastBase())addOverlay({id:'dp-selected-line',type:'line',source:'dp-selected',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':9,'line-opacity':.93}});
+ addOverlay({id:'dp-selected-center',type:'line',source:'dp-selected',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ff3b30','line-width':4.5,'line-opacity':.98}});
+ selectedOutlineIds=highContrastBase()?['dp-selected-center']:['dp-selected-line','dp-selected-center'];
  const pts=[];const gather=c=>{if(typeof c?.[0]==='number'&&Number.isFinite(c[0])&&Number.isFinite(c[1]))pts.push(c);else if(Array.isArray(c))c.forEach(gather)};
  features.forEach(f=>gather(f.geometry?.coordinates));
  if(pts.length){const bounds=pts.reduce((b,p)=>b.extend(p),new mapboxgl.LngLatBounds(pts[0],pts[0]));
@@ -474,7 +509,7 @@ function highlightStudyRoute(feature){
  if(!key)return false;
  const value=p[key];
  clearFeatureHighlight();activeFeature=feature;
- map.addLayer({id:'dp-selected-study-route',type:'line',source:'dp-study','source-layer':srcLayer,
+ addOverlay({id:'dp-selected-study-route',type:'line',source:'dp-study','source-layer':srcLayer,
   filter:['==',['get',key],value],layout:{'line-cap':'round','line-join':'round'},
   paint:{'line-color':'#ff3b30','line-width':['interpolate',['linear'],['zoom'],4,2.5,11,5,16,9],'line-opacity':.97}});
  selectedOutlineIds=['dp-selected-study-route'];
@@ -498,29 +533,6 @@ const list=['studium24','studium2020','studium2020 copy','trasy-krk-koncepcja-12
 for(let i=1;i<=20;i++)list.push('trasa_'+i);
 for(const id of list){if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none')}
 }
-function applySatelliteContrast(){
- // Osobne białe podkłady pod liniami zapewniają kontrast na ortofotomapie.
- for(const [id,group] of [...layerIndex]){
-   if(id.endsWith('-halo')||id.includes('border')||id.startsWith('dp-selected')||group==='tempoLines'||group==='tempo20')continue;
-   const layer=map.getLayer(id);
-   if(!layer||layer.type!=='line')continue;
-   const haloId=id+'-halo';
-   if(!map.getLayer(haloId)){
-     const spec={id:haloId,type:'line',source:layer.source,paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],9,2,11,2.7,13.5,4.6,16,7.8],'line-opacity':.96}};
-     if(layer['source-layer'])spec['source-layer']=layer['source-layer'];
-     if(layer.filter)spec.filter=layer.filter;
-     try{map.addLayer(spec,id);layerIndex.set(haloId,group)}catch(e){console.warn('Nie można dodać obrysu',haloId,e)}
-   }
-   if(map.getLayer(haloId))map.setLayoutProperty(haloId,'visibility',base==='satellite'&&map.getLayoutProperty(id,'visibility')==='visible'?'visible':'none');
- }
-
- const isSat=base==='satellite';
- for(const [id,group] of layerIndex){if(!map.getLayer(id))continue;
- const l=map.getLayer(id);if(l.type==='line'&&!id.includes('borders')&&!id.includes('border-red')&&!id.startsWith('dp-selected')){
-  // Obrysy obsługiwane przez warstwy -halo dodane powyżej.
- }
- }
-}
 // W RUCH istniejąca infrastruktura to dyskretne tło (50%), niezależne od presetów INFRA.
 // Nie dopisujemy jej do selection: URL, zapamiętane warstwy i konfiguracje modułów
 // pozostają nienaruszone. Nie pokazujemy planowanych inwestycji ani sugestii.
@@ -543,26 +555,27 @@ function syncVisibility(){
   const layer=map.getLayer(id);
   if(!layer)continue;
   if(layer.type==='line'){
-   map.setPaintProperty(id,'line-opacity',ruchBackdrop?0.4:(id.endsWith('-halo')?0.96:0.93));
+   map.setPaintProperty(id,'line-opacity',ruchBackdrop?0.4:0.93);
   }else if(layer.type==='symbol'&&id==='dp-oneway'){
    map.setPaintProperty(id,'text-opacity',ruchBackdrop?0.5:1);
   }
  }
 }
-const baseNames={plan:'original',light:'light',satelita:'satellite'};
-const basePublic={original:'plan',light:'light',satellite:'satelita'};
+const baseNames={plan:'original',light:'light',satelita:'satellite',noc:'night'};
+const basePublic={original:'plan',light:'light',satellite:'satelita',night:'noc'};
 function baseFromURL(){const b=new URLSearchParams(location.search).get('b');return baseNames[b]||'original'}
 function thumbURL(style){const match=/^mapbox:\/\/styles\/([^/]+)\/([^/]+)$/.exec(style);if(!match)return '';return 'https://api.mapbox.com/styles/v1/'+match[1]+'/'+match[2]+'/static/19.9383,50.0616,13,0/160x160?access_token='+encodeURIComponent(cfg.token)}
-const baseCycle=['plan','light','satelita'];
+const baseCycle=['plan','light','satelita','noc'];
+const baseThumbnail=name=>thumbURL(name==='noc'?'mapbox://styles/mapbox/dark-v11':cfg.basemaps[baseNames[name]]);
 function updateBaseControl(){
  const current=basePublic[base]||'plan';
+ $('map').classList.toggle('dp-contrast-overlays',highContrastBase());
  const start=(baseCycle.indexOf(current)+1)%baseCycle.length;
- const rotated=[baseCycle[start],baseCycle[(start+1)%3],baseCycle[(start+2)%3]];
+ const rotated=baseCycle.map((_,index)=>baseCycle[(start+index)%baseCycle.length]).filter(name=>name!==current);
  const trigger=$('baseTrigger'),picture=$('baseCurrentImage'),options=$('baseOptions');
- const first=options.querySelector('[data-base]');
  // Przycisk wyzwalający to pierwsza pozycja cyklicznej listy.
  trigger.dataset.base=rotated[0];
- picture.src=thumbURL(cfg.basemaps[baseNames[rotated[0]]]);
+ picture.src=baseThumbnail(rotated[0]);
  picture.alt='Podkład '+rotated[0]+' — centrum Krakowa';
  trigger.setAttribute('aria-label','Wybierz podkład '+rotated[0]);
  const choices=Array.from(options.querySelectorAll('[data-base]'));
@@ -571,7 +584,7 @@ function updateBaseControl(){
    el.dataset.base=name;
    el.setAttribute('aria-label','Wybierz podkład '+name);
    const img=el.querySelector('img');
-   img.src=thumbURL(cfg.basemaps[baseNames[name]]);
+   img.src=baseThumbnail(name);
    img.alt='Podkład '+name+' — centrum Krakowa';
  });
 }
@@ -711,11 +724,27 @@ function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.i
   .catch(err=>{console.warn('[DaRoPlan] Pełny odcinek VeloM niedostępny',err);if(activeFeature===clicked)highlightFeature(clicked)});
 }else if(group==='dasie'){
  if(!highlightDasieGroup(f))highlightFeature(f);
-}else highlightFeature(f);const p=f.properties||{};if(group==='velo-objazdy'){const extra=document.createElement('div');if(p.description)extra.append(linkedDescription(String(p.description)));extra.append(textNode('p','Uwaga: wpis może być archiwalny. Zweryfikuj bieżącą sytuację.','source-credit'));showPanel(p.name||'Objazd / utrudnienie','VeloM — objazdy i utrudnienia',{},extra);return;}if(group==='crossings'){const extra=document.createElement('div');const names={zdmk:'Wykonane przez ZDMK',remont:'Trwa remont / budowa',propozycja:'Propozycja społeczna',priorytet:'Priorytet — do zrobienia',nzdr:'Wykonane przez NZDR'};if(p.description)extra.append(linkedDescription(String(p.description)));else extra.append(textNode('p','Brak dodatkowego opisu.'));extra.append(textNode('p','Źródło: mapa gładkich przejazdów / Google My Maps','source-credit'));showPanel(p.name||'Gładki przejazd',names[p.category]||'Gładkie przejazdy',{},extra);return;}if(group==='audyty'){const extra=document.createElement('div');if(p.publish_date)extra.append(textNode('p','Opublikowano: '+String(p.publish_date).slice(0,10)));if(p.modified_date)extra.append(textNode('p','Zmodyfikowano: '+String(p.modified_date).slice(0,10)));if(typeof p.link==='string'&&/^https:\/\//i.test(p.link))extra.append(link('Otwórz audyt ZTP ↗',p.link));showPanel(p.title||'Audyt rowerowy',p.categories||'Audyt ZTP',{},extra);return;}if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'&&p.tweet_id){const tweetId=String(p.tweet_id).trim();extra.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));const embed=document.createElement('div');embed.className='tweet-embed';extra.append(embed);showPanel(label,'DASIE — archiwum',p,extra);renderTweet(tweetId,embed);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
+}else highlightFeature(f);const p=f.properties||{};if(group==='velo-objazdy'){const extra=document.createElement('div');if(p.description)extra.append(linkedDescription(String(p.description)));extra.append(textNode('p','Uwaga: wpis może być archiwalny. Zweryfikuj bieżącą sytuację.','source-credit'));showPanel(p.name||'Objazd / utrudnienie','VeloM — objazdy i utrudnienia',{},extra);return;}if(group==='crossings'){const extra=document.createElement('div');const names={zdmk:'Wykonane przez ZDMK',remont:'Trwa remont / budowa',propozycja:'Propozycja społeczna',priorytet:'Priorytet — do zrobienia',nzdr:'Wykonane przez NZDR'};if(p.description)extra.append(linkedDescription(String(p.description)));else extra.append(textNode('p','Brak dodatkowego opisu.'));extra.append(textNode('p','Źródło: mapa gładkich przejazdów / Google My Maps','source-credit'));showPanel(p.name||'Gładki przejazd',names[p.category]||'Gładkie przejazdy',{},extra);return;}if(group==='audyty'){const extra=document.createElement('div');if(p.publish_date)extra.append(textNode('p','Opublikowano: '+String(p.publish_date).slice(0,10)));if(p.modified_date)extra.append(textNode('p','Zmodyfikowano: '+String(p.modified_date).slice(0,10)));if(typeof p.link==='string'&&/^https:\/\//i.test(p.link))extra.append(link('Otwórz audyt ZTP ↗',p.link));showPanel(p.title||'Audyt rowerowy',p.categories||'Audyt ZTP',{},extra);return;}if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'){showDasieEntry(label,p);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
+
+function showDasieEntry(title,properties){
+ const content=document.createElement('div');
+ const tweetId=String(properties.tweet_id??'').trim();
+ const hasTweet=/^\d+$/.test(tweetId);
+ const description=String(properties.description??'').trim();
+ if(description)content.append(linkedDescription(description));
+ if(hasTweet){
+  const embed=textNode('div','','tweet-embed');
+  content.append(embed,link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+tweetId));
+  showPanel(title,'DASIE — archiwum',{},content);
+  renderTweet(tweetId,embed);
+  return;
+ }
+ showPanel(title,'DASIE — archiwum',{},content);
+}
 
 function renderTweet(id,container){
   const embed=()=>{if(!window.twttr?.widgets?.createTweet)return false;
-    window.twttr.widgets.createTweet(id,container,{lang:'pl',dnt:true,align:'center'}).then(node=>{if(!node)container.append(textNode('p','Podgląd niedostępny — użyj linku do oryginalnego wpisu.'));}).catch(()=>container.append(textNode('p','Nie udało się osadzić wpisu. Link powyżej pozostaje dostępny.')));return true;};
+    window.twttr.widgets.createTweet(id,container,{lang:'pl',dnt:true,align:'center'}).then(node=>{if(!node)container.append(textNode('p','Podgląd niedostępny — użyj linku do oryginalnego wpisu poniżej.'));}).catch(()=>container.append(textNode('p','Nie udało się osadzić wpisu. Skorzystaj z linku poniżej.')));return true;};
   if(embed())return;let tries=0;const interval=setInterval(()=>{if(!container.isConnected||embed()||++tries>40)clearInterval(interval);},200);
 }
 function attachClicks(){map.on('click',e=>{if(window.DPRuch?.visible()&&map.getLayer('dp-ruch-points')){const fs=map.queryRenderedFeatures(e.point,{layers:['dp-ruch-points']});if(fs.length){window.DPRuch.clickFeature(fs[0]);return;}}const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none'&&!(mode==='ruch'&&layerIndex.get(id)?.startsWith('infra:')));const feats=ids.length?map.queryRenderedFeatures(e.point,{layers:ids}):[];if(feats.length){const openAudit=feats.find(f=>f.layer.id==='dp-audyty-otwarte-punkty');if(openAudit){selectedFeature({features:[openAudit]});return;}const cluster=feats.find(f=>f.layer.id==='dp-audyty-zamkniete-klastry');if(cluster){const source=map.getSource('dp-audytyZamkniete');source.getClusterExpansionZoom(cluster.properties.cluster_id,(err,zoom)=>{if(!err)map.easeTo({center:cluster.geometry.coordinates,zoom:Math.min(zoom,16),duration:450})});return;}selectedFeature({features:feats});return} if(activeFeature){clearSelection09();if(mode==='ruch')openRuchPanel();else{renderControls();openPanel('layers')}} });map.on('mousemove',e=>{const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none'&&!(mode==='ruch'&&layerIndex.get(id)?.startsWith('infra:')));map.getCanvas().style.cursor=ids.length&&map.queryRenderedFeatures(e.point,{layers:ids}).length?'pointer':''})}
@@ -877,7 +906,7 @@ function renderControls(){
  const infraHeader=document.createElement('div');infraHeader.className='infra-header';
  infraHeader.append(row('infra','Infrastruktura rowerowa'));
  const expand=document.createElement('button');expand.type='button';expand.className='expand-infra';expand.textContent=infraExpanded?'▾':'▸';expand.title=infraExpanded?'Zwiń kategorie':'Rozwiń kategorie';expand.setAttribute('aria-expanded',String(infraExpanded));expand.onclick=()=>{infraExpanded=!infraExpanded;renderControls()};infraHeader.append(expand);if(mode==='infra')box.append(infraHeader);
- if(mode==='infra'&&infraExpanded){const wrap=document.createElement('div');wrap.className='infra-children';for(const cat of infraCategories)wrap.append(row(cat.id,cat.name,swatch(cat.color,cat.dash)));box.append(wrap)}
+ if(mode==='infra'&&infraExpanded){const wrap=document.createElement('div');wrap.className='infra-children';for(const cat of infraCategories)wrap.append(row(cat.id,cat.name,swatch(contrastColor(cat.color),cat.dash)));box.append(wrap)}
  const legend={suggestions:['#e32626','dotted'],construction:['#ee9a12','dashed'],tempoLines:['#f5d51b',null],tempo20:['#ffb767',null],counters:['#f47a20',null],dasie:['#dc2424',null]};
  for(const layer of layerGroups){if(layer.id==='infra'||!moduleLayerIds[mode].includes(layer.id))continue;const detail=legend[layer.id];box.append(row(layer.id,layer.title,detail?swatch(...detail):null));if(layer.id==='crossings'){
   const crossingLegend=[['#2878d0','Wykonane przez ZDMK'],['#ee8b27','Trwa remont / budowa'],['#db4242','Propozycje społeczne'],['#904ac3','Priorytet — do zrobienia'],['#858b94','Wykonane przez NZDR']];
@@ -887,7 +916,7 @@ function renderControls(){
   box.append(block);
  }if(layer.id==='velo'){
  const wrap=document.createElement('div');wrap.className='infra-children';
- for(const [id,title,color,dash] of [['velo-ddr','DDR / CPR','#2456cb',null],['velo-droga','Droga w ruchu ogólnym','#159924','dashed'],['velo-inna','Inna nawierzchnia — uwaga','#e32626','dashed'],['velo-budowa','W budowie','#f3a414','dashed'],['velo-plan','Planowane','#9848ce','dotted'],['velo-nieokreslone','Inne oznaczenia — do weryfikacji','#7d42b3','dotted']])wrap.append(row(id,title,swatch(color,dash)));
+ for(const [id,title,color,dash] of [['velo-ddr','DDR / CPR','#2456cb',null],['velo-droga','Droga w ruchu ogólnym','#159924','dashed'],['velo-inna','Inna nawierzchnia — uwaga','#e32626','dashed'],['velo-budowa','W budowie','#f3a414','dashed'],['velo-plan','Planowane','#9848ce','dotted'],['velo-nieokreslone','Inne oznaczenia — do weryfikacji','#7d42b3','dotted']])wrap.append(row(id,title,swatch(contrastColor(color),dash)));
  wrap.append(row('velo-objazdy','Objazdy / utrudnienia',swatch('#ff8c24')));
  box.append(wrap);
  const note=textNode('div','Włączenie VeloMałopolski ukrywa sieć Krakowa. Możesz ją ponownie włączyć powyżej.','fixed-layer-note');box.append(note);
@@ -906,7 +935,7 @@ function renderControls(){
 // Wyszukiwanie lokalizacji Mapbox Geocoding. Własny indeks treści dodamy w następnym etapie.
 async function search(query){if(!query.trim())return;ui.results.classList.remove('hidden');ui.results.replaceChildren(textNode('p','Wyszukiwanie miejsc…'));const controller=new AbortController();if(search.previous)search.previous.abort();search.previous=controller;try{const url='https://api.mapbox.com/geocoding/v5/mapbox.places/'+encodeURIComponent(query)+'.json?access_token='+encodeURIComponent(cfg.token)+'&country=pl&language=pl&limit=6&proximity=19.94,50.06';const response=await fetch(url,{signal:controller.signal});if(!response.ok)throw Error('HTTP '+response.status);const data=await response.json();ui.results.replaceChildren();if(!data.features?.length){ui.results.append(textNode('p','Nie znaleziono lokalizacji.'));return}for(const f of data.features){const btn=document.createElement('button');btn.append(textNode('strong',f.text||'Lokalizacja'),textNode('small',f.place_name||''));btn.addEventListener('click',()=>{ui.results.classList.add('hidden');ui.input.value=f.place_name||f.text;map.flyTo({center:f.center,zoom:Math.max(map.getZoom(),15),essential:true});const nearby=textNode('p','Wybierz obiekt na mapie, aby zobaczyć jego dane. Automatyczne wyszukiwanie powiązanych treści w promieniu miejsca jest kolejnym etapem.');showPanel(f.text||'Lokalizacja','Wynik wyszukiwania',{},nearby)});ui.results.append(btn)}}catch(e){if(e.name!=='AbortError'){ui.results.replaceChildren(textNode('p','Nie udało się wyszukać. Sprawdź dostęp geokodowania dla tokenu Mapbox.'))}}}
 function hideLocation(){geoRequest++;if(locationMarker){locationMarker.remove();locationMarker=null;}$('locate').classList.remove('is-active');$('locate').setAttribute('aria-pressed','false');$('locate').title='Pokaż moją lokalizację'}
-function init(){base=baseFromURL();restoringShareState=true;restoreSharedView();if(!window.mapboxgl){$('status').textContent='Nie załadowano Mapbox GL JS';toast('Nie udało się załadować Mapbox GL JS');return}mapboxgl.accessToken=cfg.token;map=new mapboxgl.Map({container:'map',style:cfg.basemaps[baseFromURL()],center:cfg.home,zoom:cfg.zoom,maxZoom:16,hash:true,attributionControl:true});map.addControl(new mapboxgl.NavigationControl({showCompass:true}),'bottom-right');map.addControl(new mapboxgl.ScaleControl({unit:'metric',maxWidth:90}),'bottom-left');window.DPRuch?.init(map,{open:()=>{if(mode==='ruch')openRuchPanel()}});window.DPLandrynki?.init(map,(title,node)=>{showPanel(title,'Landrynki Rowerowe',{},node)},exitLandrynkiToStory);loadDasieCms();map.on('style.load',()=>{styleRevision++;restoreThematicLayers();window.DPLandrynki?.refreshOpacity?.()});map.on('load',()=>{restoreThematicLayers();restoringShareState=false;updateShareURL();if(mode==='ruch'){openRuchPanel();}else{scheduleWelcome();}if(isMobileSheet()&&mode!=='ruch')setMobileSheet('hidden',false)});map.on('moveend',updateShareURL);window.addEventListener('popstate',()=>{const q=new URLSearchParams(location.search);const dest=q.get('m');if(dest&&moduleLayerIds[dest]&&dest!==mode){configureModes(dest,{restoreCamera:false});}if(mode==='ruch'){window.DPRuch?.restoreFromBrowser();if(ui.panel.classList.contains('hidden'))openRuchPanel();}});map.on('error',e=>console.warn('[DaRoPlan Mapbox]',e.error||e));attachClicks();loadAudytyDirect();
+function init(){base=baseFromURL();restoringShareState=true;restoreSharedView();if(!window.mapboxgl){$('status').textContent='Nie załadowano Mapbox GL JS';toast('Nie udało się załadować Mapbox GL JS');return}mapboxgl.accessToken=cfg.token;map=new mapboxgl.Map({container:'map',style:cfg.basemaps[baseFromURL()],center:cfg.home,zoom:cfg.zoom,maxZoom:16,hash:true,attributionControl:true});map.addControl(new mapboxgl.NavigationControl({showCompass:true}),'bottom-right');map.addControl(new mapboxgl.ScaleControl({unit:'metric',maxWidth:90}),'bottom-left');window.DPRuch?.init(map,{open:()=>{if(mode==='ruch')openRuchPanel()},highContrastBase});window.DPLandrynki?.init(map,(title,node)=>{showPanel(title,'Landrynki Rowerowe',{},node)},exitLandrynkiToStory);loadDasieCms();map.on('style.load',()=>{styleRevision++;restoreThematicLayers();window.DPLandrynki?.refreshOpacity?.()});map.on('load',()=>{restoreThematicLayers();restoringShareState=false;updateShareURL();if(mode==='ruch'){openRuchPanel();}else{scheduleWelcome();}if(isMobileSheet()&&mode!=='ruch')setMobileSheet('hidden',false)});map.on('moveend',updateShareURL);window.addEventListener('popstate',()=>{const q=new URLSearchParams(location.search);const dest=q.get('m');if(dest&&moduleLayerIds[dest]&&dest!==mode){configureModes(dest,{restoreCamera:false});}if(mode==='ruch'){window.DPRuch?.restoreFromBrowser();if(ui.panel.classList.contains('hidden'))openRuchPanel();}});map.on('error',e=>console.warn('[DaRoPlan Mapbox]',e.error||e));attachClicks();loadAudytyDirect();
 Promise.all([detectSourceLayers(),fetch('data/studio-layers.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Brak pliku stylu');return r.json()})]).then(([,data])=>{styleLayers=data;sourcesReady=true;restoreThematicLayers()}).catch(e=>{console.error('[DaRoPlan] Konfiguracja:',e);toast('Nie wczytano konfiguracji Studium / SIM: '+e.message)});
 $('layersBtn').addEventListener('click',()=>{if(welcomeTimer){clearTimeout(welcomeTimer);welcomeTimer=null;}const isClosed=ui.panel.classList.contains('hidden')||(isMobileSheet()&&mobileSheet.state==='hidden');if(!isClosed)closePanel();else if(mode==='ruch')openRuchPanel();else if(mode==='historia'&&landrynkiOverlayActive&&window.DPLandrynki?.showCurrent?.()){}else {renderControls();openPanel('layers')}});window.addEventListener('resize',()=>{updatePanelTab();if(isMobileSheet())syncMobileSheet(false);else updatePanelCamera(false)});if($('infoClose'))$('infoClose').onclick=()=>{if(mode==='ruch'){openRuchPanel();return;}if(!ui.content.classList.contains('hidden')){clearSelection09();renderControls();openPanel('layers')}else closePanel()};$('panelExpand').onclick=()=>{if(isMobileSheet())return;const expanded=ui.panel.classList.toggle('expanded');$('panelExpand').setAttribute('aria-expanded',String(expanded));$('panelExpand').textContent=expanded?'⌄':'⌃'};setupMobileSheet();setupBaseControl();document.querySelectorAll('[data-mode]').forEach(el=>el.addEventListener('click',()=>{configureModes(el.dataset.mode);renderControls()}));$('searchForm').addEventListener('submit',e=>{e.preventDefault();search(ui.input.value)});$('brand').onclick=()=>{if(welcomeTimer){clearTimeout(welcomeTimer);welcomeTimer=null;}showWelcome(0)};$('locate').onclick=()=>{if(locationMarker){hideLocation();return}if(!navigator.geolocation)return toast('Geolokalizacja niedostępna');const requestId=++geoRequest;navigator.geolocation.getCurrentPosition(p=>{if(requestId!==geoRequest)return;const coords=[p.coords.longitude,p.coords.latitude];if(!locationMarker){const dot=document.createElement('div');dot.className='user-location-dot';dot.title='Twoja lokalizacja';locationMarker=new mapboxgl.Marker({element:dot,anchor:'center'}).setLngLat(coords).addTo(map)}else{locationMarker.setLngLat(coords)}$('locate').classList.add('is-active');$('locate').setAttribute('aria-pressed','true');$('locate').title='Ukryj moją lokalizację';map.flyTo({center:coords,zoom:Math.max(map.getZoom(),15),essential:true});},()=>toast('Nie udało się uzyskać lokalizacji. Sprawdź uprawnienia i HTTPS.'),{enableHighAccuracy:true,timeout:12000,maximumAge:30000})};$('share').onclick=async()=>{updateShareURL();try{await navigator.clipboard.writeText(location.href);toast('Skopiowano link do mapy')}catch(e){toast('Adres mapy: '+location.href)}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){ui.results.classList.add('hidden');if(activeFeature){clearSelection09();if(mode==='ruch')openRuchPanel();else{renderControls();openPanel('layers')}}else if(!ui.panel.classList.contains('hidden'))closePanel();else hideLocation()}});// Nowe podpisy i układ 0.9.1 bez przebudowy znanych identyfikatorów HTML.
 const captions={infra:['INFRA','struktura'],ruch:['▥','Ruch'],historia:['◷','STORY'],trasy:['⌁','Trasy'],wiecej:['•••','Więcej']};
