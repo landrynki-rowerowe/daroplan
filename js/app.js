@@ -849,7 +849,13 @@ function exitLandrynkiToStory(){
  window.DPLandrynki?.deactivate();landrynkiOverlayActive=false;
  syncVisibility();renderControls();openPanel('layers');
 }
-function activateLandrynkiOverlay(){landrynkiOverlayActive=true;syncVisibility();}
+function activateLandrynkiOverlay(){
+ // Ukrycie źródłowych warstw DASIE nie ukrywa dynamicznego wyróżnienia.
+ // Usuwamy je, zanim włączymy Landrynki, niezależnie od historii kliknięć.
+ if(selectedDasieTweetId)clearFeatureHighlight();
+ landrynkiOverlayActive=true;
+ syncVisibility();
+}
 function openLandrynki(){activateLandrynkiOverlay();window.DPLandrynki?.choose();}
 function renderControls(){
  const box=$('layerControls');box.replaceChildren();const heading=ui.menu.querySelector('.section-head h2');if(heading)heading.textContent=moduleTitles[mode];
