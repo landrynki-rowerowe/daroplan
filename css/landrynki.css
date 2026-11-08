@@ -37,3 +37,6 @@
 /* Wyróżnienie przejazdu odporne na zmianę podkładu Mapbox. */
 .dp-landrynki-dot.dp-landrynki-dimmed{opacity:.5!important}
 .dp-landrynki-dot:not(.dp-landrynki-dimmed){opacity:1!important}
+
+#map.dp-contrast-overlays .dp-landrynki-dot {border:0;background:color-mix(in srgb,var(--landrynki-color,#e34c54) 70%,#fff)}
+#map.dp-contrast-overlays .dp-landrynki-package-pin {border-color:#ff727f}
