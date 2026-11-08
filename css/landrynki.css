@@ -1,0 +1,22 @@
+/* Landrynki — izolowane klasy, bez modyfikowania innych modułów */
+.dp-landrynki-open{width:100%;margin:0 0 16px;padding:12px 14px;border:1px solid #d1dde2;background:#f1f7f9;color:#1a4f64;border-radius:11px;font-weight:700;text-align:left}
+.dp-landrynki-open:hover{background:#e7f1f4}
+.dp-landrynki{display:flex;flex-direction:column;gap:13px;padding-bottom:20px}
+.dp-landrynki-thumbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 12px;padding:4px 0}
+.dp-landrynki-thumb{aspect-ratio:1;width:100%;max-width:120px;margin:auto;border:3px solid #777;border-radius:50%;overflow:hidden;padding:0;background:#f1f2f3;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.dp-landrynki-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.dp-landrynki-thumb:focus-visible,.dp-landrynki-dot:focus-visible{outline:3px solid #2177e5;outline-offset:3px}
+.dp-landrynki-back{align-self:flex-start;background:none;border:0;color:#485e69;font-size:24px;line-height:1;padding:6px 11px 6px 0}
+.dp-landrynki-back:hover{color:#145b92}
+.dp-landrynki-route-name{font-size:16px;overflow-wrap:anywhere;margin:0}
+.dp-landrynki-video{width:100%;aspect-ratio:16/9;border:0;border-radius:11px;background:#20242a}
+.dp-landrynki-description{font-size:14px;line-height:1.6;white-space:pre-line}
+.dp-landrynki-dot{width:21px;height:21px;border-radius:50%;border:3px solid white;background:var(--landrynki-color,#e34c54);box-shadow:0 1px 6px #0009;cursor:pointer;padding:0;transition:opacity 140ms}
+.dp-landrynki-dot:hover{transform:scale(1.18)}
+.dp-landrynki-list{display:flex;flex-direction:column;gap:12px}
+.dp-landrynki-card{display:flex;gap:12px;width:100%;padding:8px;background:#f7fafb;border:1px solid #dae3e6;border-radius:12px;text-align:left;align-items:center}
+.dp-landrynki-card img{width:88px;height:70px;border-radius:8px;object-fit:cover;flex:none}
+.dp-landrynki-card-text{display:flex;flex-direction:column;gap:6px;min-width:0}
+.dp-landrynki-card-text strong{font-size:15px}
+.dp-landrynki-card-text small{font-size:13px;color:#64747d}
+@media(max-width:700px){.dp-landrynki-thumbs{gap:12px 8px}.dp-landrynki-dot{width:25px;height:25px}}
