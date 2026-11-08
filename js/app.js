@@ -519,7 +519,7 @@ function syncVisibility(){
   const visible=infrastructure
    ?(ruchBackdrop||(selection.has('infra')&&selection.has(group.slice(6))))
    :visibleGroup(group);
-  const cmsVisible=dasieCmsPreview&&Boolean(dasieCmsData);
+  const cmsVisible=dasieCmsPreview&&Boolean(dasieCmsData)&&Boolean(map.getLayer('dp-dasie-cms'))&&Boolean(map.getLayer('dp-dasie-cms-line'));
    const cmsLayer=id==='dp-dasie-cms'||id==='dp-dasie-cms-line';
    const legacyDasie=id==='dp-dasie'||id==='dp-dasie-line';
    const blocked=(group==='counters'&&ruchBackdrop)||(group==='dasie'&&landrynkiOverlayActive)||(cmsVisible&&legacyDasie)||(!cmsVisible&&cmsLayer);
