@@ -69,6 +69,11 @@ function render({silent=false}={}){
   if(panel)panel.replaceChildren(el('div','tag','Landrynki Rowerowe'),el('h2','',packageData.title),wrap);
  }
 }
+function showCurrent(){
+ if(view==='package'&&packageData){render();return true}
+ if(view==='list'){renderList();return true}
+ return false;
+}
 function deactivate(){
  revision++;listSession++;removeRouteMarkers();for(const obj of packagePins)obj.marker.remove();packagePins=[];packageList=[];detailsCache.clear();view='closed';
 }
@@ -156,5 +161,5 @@ async function choose(){
   console.warn('[Landrynki]',err);show('Landrynki',el('p','','Nie można pobrać Landrynek z WordPressa.'));
  }
 }
-window.DPLandrynki=Object.freeze({init(m,renderPanel,exitCallback){map=m;show=renderPanel;onExit=exitCallback},choose,open,deactivate,onPanelHide,isActive:()=>view!=='closed'});
+window.DPLandrynki=Object.freeze({init(m,renderPanel,exitCallback){map=m;show=renderPanel;onExit=exitCallback},choose,open,deactivate,onPanelHide,showCurrent,isActive:()=>view!=='closed'});
 })();
