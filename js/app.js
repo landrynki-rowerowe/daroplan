@@ -588,6 +588,16 @@ function showWelcome(index=0){
  nav.append(dots,arrows);root.append(nav);
  const action=document.createElement('button');action.type='button';action.className='dp-welcome-action';action.textContent=slide.action+' →';action.onclick=()=>{configureModes(slide.mode);if(slide.landrynki)openLandrynki();if(slide.mode==='wiecej'){selection.add('audyty');moduleStates.wiecej=new Set([...selection].filter(id=>moduleLayerIds.wiecej.includes(id)));syncVisibility();renderControls();updateShareURL()}};root.append(action);
  ui.content.replaceChildren(root);openPanel('content');ui.panel.classList.add('welcome-view');
+ if(slide.landrynki && window.DPLandrynkiAPI){
+  window.DPLandrynkiAPI.list().then(list=>{
+   if(!root.isConnected||!list.length||welcomeSlides[welcomeIndex]!==slide)return;
+   const item=list[0],card=textNode('button','','dp-landrynki-card');card.type='button';
+   if(item.featuredImageUrl){const img=document.createElement('img');img.src=item.featuredImageUrl;img.alt='';img.loading='lazy';card.append(img)}
+   const content=textNode('span','','dp-landrynki-card-text');content.append(textNode('strong',item.title),textNode('small',item.excerpt||item.routeCount+' przejazdy'));card.append(content);
+   card.onclick=()=>{configureModes('historia');window.DPLandrynki?.open(item.id)};
+   root.insertBefore(card,nav);
+  }).catch(err=>console.warn('[Landrynki] Karta powitalna:',err));
+ }
 }
 function scheduleWelcome(){
  if(isSharedEntry())return;
