@@ -48,7 +48,9 @@ function render({silent=false}={}){
   const title=el('h3','dp-landrynki-route-name',route.name);wrap.append(title);
   if(route.youtubeId){
    const video=el('iframe','dp-landrynki-video');
-   video.src='https://www.youtube-nocookie.com/embed/'+encodeURIComponent(route.youtubeId)+'?rel=0';
+   const desktop=window.matchMedia('(min-width:701px)').matches;
+   // Autoplay w przeglądarkach desktopowych działa niezawodniej z wyciszonym dźwiękiem.
+   video.src='https://www.youtube-nocookie.com/embed/'+encodeURIComponent(route.youtubeId)+'?rel=0&playsinline=1'+(desktop?'&autoplay=1&mute=1':'');
    video.title='Film: '+route.name;video.loading='lazy';video.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';video.allowFullscreen=true;wrap.append(video);
   }else wrap.append(el('p','','Brak filmu dla tego przejazdu.'));
   if(route.description)wrap.append(el('p','dp-landrynki-description',route.description));
