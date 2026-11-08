@@ -26,8 +26,15 @@ function loop(time){
  frame=requestAnimationFrame(loop);
 }
 function opacity(){
- for(const o of items)o.marker.getElement().style.opacity=selected&&selected!==o.route.id?'0.5':'1';
+ // Stan zaznaczenia w CSS, niezależny od aktualnie załadowanego stylu Mapbox.
+ // Klasa na naszym markerze nie znika przy map.setStyle().
+ for(const o of items){
+  const marker=o.marker.getElement();
+  marker.classList.toggle('dp-landrynki-dimmed',Boolean(selected&&selected!==o.route.id));
+  marker.style.removeProperty('opacity');
+ }
 }
+function refreshOpacity(){if(view==='package')opacity();}
 function back(){selected=null;opacity();render()}
 function exitLandrynki(){deactivate();onExit?.();}
 function removeRouteMarkers(){cancelAnimationFrame(frame);frame=0;last=0;for(const obj of items)obj.marker.remove();items=[];active=false;selected=null;packageData=null;}
@@ -163,5 +170,5 @@ async function choose(){
   console.warn('[Landrynki]',err);show('Landrynki',el('p','','Nie można pobrać Landrynek z WordPressa.'));
  }
 }
-window.DPLandrynki=Object.freeze({init(m,renderPanel,exitCallback){map=m;show=renderPanel;onExit=exitCallback},choose,open,deactivate,onPanelHide,showCurrent,isActive:()=>view!=='closed'});
+window.DPLandrynki=Object.freeze({init(m,renderPanel,exitCallback){map=m;show=renderPanel;onExit=exitCallback},choose,open,deactivate,onPanelHide,showCurrent,refreshOpacity,isActive:()=>view!=='closed'});
 })();
