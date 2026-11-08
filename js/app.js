@@ -7,6 +7,8 @@ const ui={menu:$('layersMenu'),panel:$('infoPanel'),content:$('infoContent'),res
 if (/\/index\.html$/i.test(location.pathname)) history.replaceState(null,'',location.pathname.replace(/index\.html$/i,'')+location.search+location.hash);
 let map,styleLayers=[],mode='infra',base='original',loadingSequence=0,locationMarker=null,activeFeature=null,selectedOutlineIds=[],sourceLayers={};
 let sourcesReady=false, styleRevision=0;
+// Nakładka Landrynek w STORY: ukrywa DASIE bez zmiany ustawień warstw i zapisanych URL-i.
+let landrynkiOverlayActive=false;
 // Padding mapy wynika z panelu, a nie ze stanu udostępnianego URL.
 let panelCameraWidth=0,lastCameraBottom=0;
 const mobileSheet = {state:'hidden',dragging:false,startY:0,startHeight:0,moved:false};
@@ -486,7 +488,7 @@ function syncVisibility(){
   const visible=infrastructure
    ?(ruchBackdrop||(selection.has('infra')&&selection.has(group.slice(6))))
    :visibleGroup(group);
-  map.setLayoutProperty(id,'visibility',(group==='counters'&&ruchBackdrop)?'none':visible?'visible':'none');
+  map.setLayoutProperty(id,'visibility',((group==='counters'&&ruchBackdrop)||(group==='dasie'&&landrynkiOverlayActive))?'none':visible?'visible':'none');
  }
  // Obrysy linii na podkładzie satelitarnym powstają dynamicznie; ustawiamy ich
  // przezroczystość dopiero po odtworzeniu/utworzeniu ich przez Mapbox.
@@ -594,7 +596,7 @@ function showWelcome(index=0){
    const item=list[0],card=textNode('button','','dp-landrynki-card');card.type='button';
    if(item.featuredImageUrl){const img=document.createElement('img');img.src=item.featuredImageUrl;img.alt='';img.loading='lazy';card.append(img)}
    const content=textNode('span','','dp-landrynki-card-text');content.append(textNode('strong',item.title),textNode('small',item.excerpt||item.routeCount+' przejazdy'));card.append(content);
-   card.onclick=()=>{configureModes('historia');window.DPLandrynki?.open(item.id)};
+   card.onclick=()=>{configureModes('historia');activateLandrynkiOverlay();window.DPLandrynki?.open(item.id)};
    root.insertBefore(card,nav);
   }).catch(err=>console.warn('[Landrynki] Karta powitalna:',err));
  }
@@ -781,7 +783,9 @@ function updateShareURL(){
 function clearSelection09(){if(activeFeature)clearFeatureHighlight();}
 function configureModes(next,{restoreCamera=true}={}){
  if(!moduleLayerIds[next])return;
- if(next!=='ruch')window.DPRuch?.deactivate();if(next!=='historia')window.DPLandrynki?.deactivate();
+ if(next!=='ruch')window.DPRuch?.deactivate();if(next!=='historia'){
+   window.DPLandrynki?.deactivate();landrynkiOverlayActive=false;
+  }
  if(mode===next && !ui.panel.classList.contains('hidden')){if(next==='ruch'){openRuchPanel();return;}renderControls();openPanel('layers');return;}
  if(moduleLayerIds[mode]){moduleStates[mode]=new Set([...selection].filter(id=>moduleLayerIds[mode].includes(id)));snapshotModuleCamera(mode);}
  const nextSelection=moduleStates[next]||new Set(defaults[next]);
@@ -796,7 +800,8 @@ function configureModes(next,{restoreCamera=true}={}){
 }
 
 function openRuchPanel(){if(!window.DPRuch)return;const node=document.createElement('div');node.className='dp-ruch-panel';showPanel('Ruch rowerowy','Pomiary automatyczne',{},node);window.DPRuch.activate(node).finally(()=>syncVisibility());}
-function openLandrynki(){window.DPLandrynki?.choose();}
+function activateLandrynkiOverlay(){landrynkiOverlayActive=true;syncVisibility();}
+function openLandrynki(){activateLandrynkiOverlay();window.DPLandrynki?.choose();}
 function renderControls(){
  const box=$('layerControls');box.replaceChildren();const heading=ui.menu.querySelector('.section-head h2');if(heading)heading.textContent=moduleTitles[mode];
  const row=(id,title,swatch)=>{const label=textNode('div','','layer-line'),input=document.createElement('input');input.type='checkbox';input.checked=selection.has(id);input.addEventListener('change',()=>{if(id==='velo'){input.checked?enableVelo():disableVelo()}else{input.checked?selection.add(id):selection.delete(id)}if(addonLayers.includes(id)&&!input.checked)selectedAddons.delete(id);moduleStates[mode]=new Set([...selection].filter(key=>moduleLayerIds[mode].includes(key)));try{syncVisibility();renderControls();updateShareURL()}catch(e){console.error('[DaRoPlan] Nie udało się przełączyć warstwy',id,e);toast('Błąd przełączania warstwy — sprawdź konsolę')} });label.append(input);if(swatch)label.append(swatch);const name=textNode('span',title);name.style.cursor='pointer';name.addEventListener('click',()=>input.click());label.append(name);
@@ -835,6 +840,7 @@ function renderControls(){
  if(mode!=='wiecej'){const label=textNode('h3','Dodatkowe nakładki');box.append(label);for(const id of addonLayers){const group=layerGroups.find(layer=>layer.id===id);if(group)box.append(row(id,group.title))}}
  if(mode==='historia'){
   const button=textNode('button','🍬 Landrynki Rowerowe','dp-landrynki-open');button.type='button';button.onclick=openLandrynki;box.prepend(button);
+  if(landrynkiOverlayActive)box.append(textNode('p','Warstwa DASIE jest ukryta podczas korzystania z Landrynek.','note'));
  }
  if(mode==='wiecej'){
   const help=textNode('p','Warstwy specjalistyczne można nakładać na pozostałe mapy tematyczne.','note');box.prepend(help);
