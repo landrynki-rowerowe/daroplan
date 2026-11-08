@@ -9,10 +9,8 @@ let map,styleLayers=[],mode='infra',base='original',loadingSequence=0,locationMa
 let sourcesReady=false, styleRevision=0;
 // Nakładka Landrynek w STORY: ukrywa DASIE bez zmiany ustawień warstw i zapisanych URL-i.
 let landrynkiOverlayActive=false;
-// Stopniowa migracja: ?dasie=cms włącza podgląd częściowo opublikowanego archiwum CMS.
-// Domyślnie pozostaje kompletne archiwum Mapbox do czasu walidacji migracji.
-let dasieCmsData=null,dasieCmsError='',dasieCmsLoading=false;
-let dasieCmsPreview=new URLSearchParams(location.search).get('dasie')==='cms';
+// DASIE pochodzi z CMS. Wybrany tweet zostaje zachowany przy zmianie podkładu.
+let dasieCmsData=null,dasieCmsError='',dasieCmsLoading=false,selectedDasieTweetId=null;
 // Padding mapy wynika z panelu, a nie ze stanu udostępnianego URL.
 let panelCameraWidth=0,lastCameraBottom=0;
 const mobileSheet = {state:'hidden',dragging:false,startY:0,startHeight:0,moved:false};
@@ -113,7 +111,6 @@ function disableVelo(){selection.delete('velo');if(previousInfraSelection){for(c
 const sources={
  infra:{type:'vector',url:'mapbox://ibikekrk.cmmypfiet2x4g1opbk9r00o65-059oo'},
  tempoLines:{type:'vector',url:'mapbox://ibikekrk.cm3korqja33ub1pn91bx6ig9w-33wp9'},
- dasie:{type:'vector',url:'mapbox://ibikekrk.cmlz0thvh3hkx1oo68xw66v0q-2nh4q'},
  counters:{type:'vector',url:'mapbox://ibikekrk.cjxuf77kl0cuq2iqltb1a83kq-79d7h'},
  stojaki:{type:'geojson',data:'https://services-eu1.arcgis.com/svTzSt3AvH7sK6q9/arcgis/rest/services/Stojaki_ZTP_wy%C5%9Bwietlenie/FeatureServer/1/query?where=typ%3D%27stojak%20rowerowy%27&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=2000&f=geojson'},
  ztp:{type:'geojson',data:'https://services-eu1.arcgis.com/svTzSt3AvH7sK6q9/arcgis/rest/services/Infrastruktura_rowerowa_ZTP/FeatureServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson'},
@@ -204,16 +201,8 @@ add('stojaki',circle('stojaki','dp-stojaki',null,'#0071ac'),'stojaki');
 add('shelters',circle('shelters','dp-ztp',null,'#c026d3',['==',['get','typ'],'wiata']),'shelters');
 add('supports',circle('supports','dp-ztp',null,'#00a676',['==',['get','typ'],'podpórka']),'supports');
 add('repairs',circle('repairs','dp-ztp',null,'#0e81a6',['==',['get','typ'],'stacja naprawy rowerów']),'repairs');
-// DASIE: geometrie liniowe i punktowe od razu w odpowiedniej postaci.
-// Wierzchołki LineString nie są osobnymi znacznikami.
-const dasieLayer='dasie_2.3';
-const dasiePoints=['==',['geometry-type'],'Point'];
-const dasieLines=['==',['geometry-type'],'LineString'];
-add('dasie-line',line('dasie-line','dp-dasie',dasieLayer,'#dc2424',dasieLines,null,3),'dasie');
-const dasieMarker=circle('dasie','dp-dasie',dasieLayer,'#dc2424',dasiePoints);
-dasieMarker.paint['circle-radius']=['interpolate',['linear'],['zoom'],9,2.5,11,3.75,13.5,5.625,16,10];
-add('dasie',dasieMarker,'dasie');
- installDasieCmsLayers();
+// DASIE: linie i punkty wyłącznie z CMS.
+installDasieCmsLayers();
 // Objazdy wstawione PRZED pozostałymi liniami VeloM, aby nie zasłaniać sieci.
 add('velo-objazdy-linie',{
  id:'dp-velo-objazdy-linie',type:'line',source:'dp-veloObjazdy',filter:['==',['get','kind'],'line'],
@@ -316,7 +305,7 @@ async function loadDasieCms(){
   const fc=await window.DPDasieCMS.load();dasieCmsData=fc;dasieCmsError='';
   if(map?.isStyleLoaded()){installDasieCmsLayers();syncVisibility();}
   console.info('[DASIE CMS] Wczytano geometrii:',fc.features.length);
- }catch(err){dasieCmsError=String(err.message||err);dasieCmsData=null;console.warn('[DASIE CMS] Bezpieczny powrót do Mapbox:',err);}
+ }catch(err){dasieCmsError=String(err.message||err);dasieCmsData=null;console.warn('[DASIE CMS] Błąd danych:',err);toast('Nie udało się pobrać DASIE z CMS');}
  finally{dasieCmsLoading=false;if(mode==='historia')renderControls()}
 }
 function restoreThematicLayers(){
@@ -325,6 +314,11 @@ function restoreThematicLayers(){
    hideStyleThemes();
    createLayers();
    syncVisibility();
+   // Po zmianie podkładu Mapbox usuwa dynamiczne warstwy zaznaczenia.
+   if(selectedDasieTweetId&&dasieCmsData){
+    const selected=dasieCmsData.features.find(f=>String(f.properties?.tweet_id||'').trim()===selectedDasieTweetId);
+    if(selected)highlightDasieGroup({...selected,layer:{id:'dp-dasie-cms'}},false);
+   }
    renderControls();
    // RUCH jest osobnym źródłem GeoJSON; setStyle() usuwa także jego warstwy.
    // Odtwarzamy je dopiero PO warstwach tematycznych DaRoPlanu.
@@ -332,6 +326,7 @@ function restoreThematicLayers(){
  }catch(err){console.error('[DaRoPlan] Przywracanie warstw po zmianie podkładu:',err);toast('Nie udało się przywrócić części warstw mapy');}
 }
 function clearFeatureHighlight(){
+ selectedDasieTweetId=null;
  activeFeature=null;
  for(const id of selectedOutlineIds)if(map.getLayer(id))map.removeLayer(id);
  selectedOutlineIds=[];
@@ -340,27 +335,38 @@ function clearFeatureHighlight(){
 // Jeden tweet może opisywać wiele linii i punktów. Wyróżniamy po tweet_id
 // bez kopiowania geometrii z aktualnie widocznych kafelków, aby podświetlenie
 // obejmowało także fragmenty doładowane po przesunięciu mapy.
-function highlightDasieGroup(feature){
- const raw=feature?.properties?.tweet_id;
- if(raw===undefined||raw===null||String(raw).trim()==='')return false;
- if(!map.getSource(feature.layer?.id?.startsWith('dp-dasie-cms')?'dp-dasieCms':'dp-dasie'))return false;
- const tweetId=String(raw).trim();
- const isCms=feature.layer?.id?.startsWith('dp-dasie-cms');
- const sourceId=isCms?'dp-dasieCms':'dp-dasie';
- const sourceLayer=isCms?null:(feature.layer?.['source-layer']||'dasie_2.3');
- clearFeatureHighlight();
- activeFeature=feature;
+function highlightDasieGroup(feature,moveCamera=true){
+ const tweetId=String(feature?.properties?.tweet_id||'').trim();
+ if(!tweetId||!dasieCmsData||!map.getSource('dp-dasieCms'))return false;
+ const related=dasieCmsData.features.filter(f=>String(f.properties?.tweet_id||'').trim()===tweetId);
+ if(!related.length)return false;
+ clearFeatureHighlight();activeFeature=feature;selectedDasieTweetId=tweetId;
  const common=['==',['to-string',['get','tweet_id']],tweetId];
  const specs=[
   {id:'dp-selected-dasie-line-halo',type:'line',filter:['all',common,['==',['geometry-type'],'LineString']],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],9,5,13,9,16,14],'line-opacity':.96}},
   {id:'dp-selected-dasie-line',type:'line',filter:['all',common,['==',['geometry-type'],'LineString']],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ff3b30','line-width':['interpolate',['linear'],['zoom'],9,2.7,13,5,16,8],'line-opacity':1}},
   {id:'dp-selected-dasie-point',type:'circle',filter:['all',common,['==',['geometry-type'],'Point']],paint:{'circle-radius':['interpolate',['linear'],['zoom'],9,6,13,10,16,14],'circle-color':'#ff3b30','circle-stroke-color':'#ffffff','circle-stroke-width':3,'circle-opacity':1}}
  ];
- try{
-  for(const spec of specs){const layer={...spec,source:sourceId};if(sourceLayer)layer['source-layer']=sourceLayer;map.addLayer(layer);selectedOutlineIds.push(spec.id);}
- }catch(e){console.warn('[DaRoPlan] Nie udało się wyróżnić grupy DASIE',tweetId,e);clearFeatureHighlight();return false;}
- // Bez automatycznego fitBounds: tileset wektorowy może nie zawierać w danym
- // kadrze wszystkich miejsc powiązanych z tweetem. Użytkownik zachowuje kamerę.
+ try{for(const spec of specs){map.addLayer({...spec,source:'dp-dasieCms'});selectedOutlineIds.push(spec.id);}}
+ catch(e){console.warn('[DASIE] Podświetlenie niedostępne',tweetId,e);clearFeatureHighlight();return false;}
+ if(moveCamera){
+  // Uwzględniamy wszystkie geometrie tego tweeta, także poza kadrem.
+  const points=[];
+  for(const item of related){
+   if(item.geometry?.type==='Point')points.push(item.geometry.coordinates);
+   else if(item.geometry?.type==='LineString')points.push(...item.geometry.coordinates);
+  }
+  if(points.length){
+   const p=panelPadding();
+   const padding={left:55,right:Math.max(p.right+45,55),top:90,bottom:isMobileSheet()?Math.max(p.bottom,135):90};
+   if(points.every(c=>c[0]===points[0][0]&&c[1]===points[0][1]))
+    map.easeTo({center:points[0],zoom:Math.max(map.getZoom(),15),padding,duration:600});
+   else{
+    const bounds=points.reduce((b,c)=>b.extend(c),new mapboxgl.LngLatBounds(points[0],points[0]));
+    map.fitBounds(bounds,{padding,maxZoom:15.4,duration:650});
+   }
+  }
+ }
  return true;
 }
 function highlightFeature(feature){
@@ -519,10 +525,7 @@ function syncVisibility(){
   const visible=infrastructure
    ?(ruchBackdrop||(selection.has('infra')&&selection.has(group.slice(6))))
    :visibleGroup(group);
-  const cmsVisible=dasieCmsPreview&&Boolean(dasieCmsData)&&Boolean(map.getLayer('dp-dasie-cms'))&&Boolean(map.getLayer('dp-dasie-cms-line'));
-   const cmsLayer=id==='dp-dasie-cms'||id==='dp-dasie-cms-line';
-   const legacyDasie=id==='dp-dasie'||id==='dp-dasie-line';
-   const blocked=(group==='counters'&&ruchBackdrop)||(group==='dasie'&&landrynkiOverlayActive)||(cmsVisible&&legacyDasie)||(!cmsVisible&&cmsLayer);
+  const blocked=(group==='counters'&&ruchBackdrop)||(group==='dasie'&&landrynkiOverlayActive);
    map.setLayoutProperty(id,'visibility',blocked?'none':visible?'visible':'none');
  }
  // Obrysy linii na podkładzie satelitarnym powstają dynamicznie; ustawiamy ich
@@ -878,17 +881,7 @@ function renderControls(){
  }}
  if(mode!=='wiecej'){const label=textNode('h3','Dodatkowe nakładki');box.append(label);for(const id of addonLayers){const group=layerGroups.find(layer=>layer.id===id);if(group)box.append(row(id,group.title))}}
  if(mode==='historia'){
-  const cmsToggle=textNode('button',dasieCmsPreview?'DASIE: CMS (podgląd) ✓':'DASIE: sprawdź wersję z CMS','dp-dasie-cms-toggle');
-  cmsToggle.type='button';cmsToggle.setAttribute('aria-pressed',String(dasieCmsPreview));
-  cmsToggle.onclick=()=>{
-   dasieCmsPreview=!dasieCmsPreview;
-   const url=new URL(location.href);url.searchParams.set('dasie',dasieCmsPreview?'cms':'mapbox');history.replaceState(null,'',url.pathname+url.search+url.hash);
-   if(dasieCmsPreview&&!dasieCmsData)loadDasieCms();
-   syncVisibility();renderControls();
-  };
-  box.prepend(cmsToggle);
-  if(dasieCmsPreview&&!dasieCmsData)box.append(textNode('p',dasieCmsError?'CMS niedostępny — pokazujemy Mapbox. '+dasieCmsError:'Dane CMS są wczytywane; do tego czasu wyświetlamy Mapbox.','note'));
-  else if(dasieCmsPreview&&dasieCmsData)box.append(textNode('p','Podgląd CMS: '+dasieCmsData.features.length+' geometrii. Dotychczasowe archiwum Mapbox jest tymczasowo ukryte.','note'));
+  if(dasieCmsError)box.append(textNode('p','DASIE CMS niedostępny: '+dasieCmsError,'note'));
   const button=textNode('button','🍬 Landrynki Rowerowe','dp-landrynki-open');button.type='button';button.onclick=openLandrynki;box.prepend(button);
   if(landrynkiOverlayActive)box.append(textNode('p','Warstwa DASIE jest ukryta podczas korzystania z Landrynek.','note'));
  }

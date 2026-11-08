@@ -32,14 +32,14 @@ function normalize(payload){
  // Do not silently show an incomplete archive if pagination grows beyond page 1.
  const page=payload.pagination;
  if(isObject(page)&&(Number(page.total_pages||page.pages||1)>1||page.has_more===true||page.next_page!=null))
-  throw new Error('DASIE CMS: API zwróciło więcej niż jedną stronę; pozostawiamy Mapbox');
+  throw new Error('DASIE CMS: API zwróciło więcej niż jedną stronę; wymagane stronicowanie');
  return {type:'FeatureCollection',features};
 }
 async function load({signal}={}){
  const response=await fetch(ENDPOINT,{mode:'cors',credentials:'omit',headers:{Accept:'application/json'},signal,cache:'no-store'});
  if(!response.ok)throw new Error('DASIE CMS: HTTP '+response.status);
  const fc=normalize(await response.json());
- if(!fc.features.length)throw new Error('DASIE CMS: brak geometrii; pozostawiamy Mapbox');
+ if(!fc.features.length)throw new Error('DASIE CMS: brak opublikowanych geometrii');
  return fc;
 }
 window.DPDasieCMS=Object.freeze({load,normalize,endpoint:ENDPOINT});
