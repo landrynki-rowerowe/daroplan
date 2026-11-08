@@ -34,11 +34,11 @@ function removeRouteMarkers(){cancelAnimationFrame(frame);frame=0;last=0;for(con
 function syncPins(){for(const item of packagePins)item.marker.getElement().hidden=view==='closed'||(view==='package'&&packageData?.id===item.id);}
 function onPanelHide(){
  // Wygaszenie wideo bez otwierania ukrytego panelu. Animacje pozostają aktywne.
- if(view==='package'&&selected){selected=null;opacity();const iframe=document.querySelector('#infoContent .dp-landrynki-video');if(iframe)iframe.remove();}
+ if(view==='package'&&selected){selected=null;opacity();render({silent:true});}
 }
-function goList(){revision++;removeRouteMarkers();view='list';syncPins();renderList();}
+function goList(){revision++;removeRouteMarkers();view='list';syncPins();renderList();focusPins();}
 function pick(id){selected=id;opacity();render()}
-function render(){
+function render({silent=false}={}){
  if(!active||!packageData||!show)return;
  const wrap=el('div','dp-landrynki');
  if(selected){
@@ -64,7 +64,10 @@ function render(){
   }
   wrap.append(grid);
  }
- show(packageData.title,wrap);
+ if(!silent){show(packageData.title,wrap)}else{
+  const panel=document.getElementById('infoContent');
+  if(panel)panel.replaceChildren(el('div','tag','Landrynki Rowerowe'),el('h2','',packageData.title),wrap);
+ }
 }
 function deactivate(){
  revision++;listSession++;removeRouteMarkers();for(const obj of packagePins)obj.marker.remove();packagePins=[];packageList=[];detailsCache.clear();view='closed';
@@ -121,6 +124,12 @@ function addPackagePin(data,label){
  const marker=new mapboxgl.Marker({element:button,anchor:'bottom'}).setLngLat(center).addTo(map);
  packagePins.push({id:data.id,marker,center});syncPins();
 }
+function focusPins(){
+ if(view!=='list'||!packagePins.length)return;
+ const pts=packagePins.map(p=>p.center),bounds=new mapboxgl.LngLatBounds(pts[0],pts[0]);pts.forEach(p=>bounds.extend(p));
+ const mobile=window.matchMedia('(max-width:700px)').matches;
+ map.fitBounds(bounds,{padding:mobile?{top:80,bottom:Math.round(innerHeight*.52),left:40,right:40}:{top:80,bottom:80,left:50,right:Math.min(510,Math.round(innerWidth*.37))},maxZoom:13.5,duration:600});
+}
 async function loadPins(list,session){
  // Pozycja paczuszki wynika z geometrii jej tras, bez dodatkowych pól CMS.
  const results=await Promise.allSettled(list.map(async entry=>{
@@ -130,9 +139,7 @@ async function loadPins(list,session){
  }));
  if(session!==listSession||view!=='list')return;
  if(!packagePins.length)return;
- const pts=packagePins.map(p=>p.center);const bounds=new mapboxgl.LngLatBounds(pts[0],pts[0]);pts.forEach(p=>bounds.extend(p));
- const mobile=window.matchMedia('(max-width:700px)').matches;
- map.fitBounds(bounds,{padding:mobile?{top:80,bottom:Math.round(innerHeight*.52),left:40,right:40}:{top:80,bottom:80,left:50,right:Math.min(510,Math.round(innerWidth*.37))},maxZoom:13.5,duration:600});
+ focusPins();
  if(results.some(r=>r.status==='rejected'))console.warn('[Landrynki] Niektóre paczuszki nie mają geometrii do znacznika.');
 }
 async function choose(){
