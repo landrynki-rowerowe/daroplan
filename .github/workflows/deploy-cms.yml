@@ -3,9 +3,15 @@ name: DaRoPlan CMS - manual deployment
 on:
   workflow_dispatch:
     inputs:
+      probe_only:
+        description: "Only check SSH CMS directory; no file transfer or writes"
+        required: true
+        default: true
+        type: boolean
       filename:
         description: "Exact MU-plugin filename in cms/mu-plugins (e.g. daroplan-story-scenes-0.1.php)"
-        required: true
+        required: false
+        default: ""
         type: string
       apply:
         description: "Deploy to CMS? Leave unchecked for a safe dry-run"
@@ -37,29 +43,36 @@ jobs:
           CMS_PATH: ${{ vars.CMS_MU_PLUGINS_PATH }}
         run: |
           set -euo pipefail
-          [[ "$DEPLOY_FILE" =~ ^daroplan-[A-Za-z0-9._-]+\.php$ ]] || { echo "Invalid MU-plugin filename"; exit 1; }
+          if [[ "${{ inputs.probe_only }}" != "true" ]]; then
+            [[ "$DEPLOY_FILE" =~ ^daroplan-[A-Za-z0-9._-]+\.php$ ]] || { echo "Invalid MU-plugin filename"; exit 1; }
+            test -f "cms/mu-plugins/$DEPLOY_FILE"
+            php -l "cms/mu-plugins/$DEPLOY_FILE"
+          fi
           [[ -n "$CMS_PATH" ]] || { echo "Set repository variable CMS_MU_PLUGINS_PATH"; exit 1; }
           [[ "$CMS_PATH" == *lab.otwartyplan.org*/wp-content/mu-plugins ]] || { echo "Verify the CMS directory path"; exit 1; }
-          test -f "cms/mu-plugins/$DEPLOY_FILE"
-          php -l "cms/mu-plugins/$DEPLOY_FILE"
 
       - name: Confirm destination exists (do not edit files)
         uses: appleboy/ssh-action@v1
         env:
           CMS_PATH: ${{ vars.CMS_MU_PLUGINS_PATH }}
           DEPLOY_FILE: ${{ inputs.filename }}
+          PROBE_ONLY: ${{ inputs.probe_only }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          envs: CMS_PATH,DEPLOY_FILE
+          envs: CMS_PATH,DEPLOY_FILE,PROBE_ONLY
           script: |
             set -eu
+            cd "$HOME"
             test -d "$CMS_PATH"
-            test -d "$CMS_PATH/../../"
             test -w "$CMS_PATH"
             echo "CMS target verified: $CMS_PATH"
+            if [ "$PROBE_ONLY" = "true" ]; then
+              echo "PROBE OK: directory exists and is writable; no files were transferred or modified."
+              exit 0
+            fi
             if [ -f "$CMS_PATH/$DEPLOY_FILE" ]; then
               echo "Existing MU-plugin will be backed up if deployment is approved."
             else
@@ -67,6 +80,7 @@ jobs:
             fi
 
       - name: Transfer single file to staging (not the live directory)
+        if: inputs.probe_only == false
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -80,6 +94,7 @@ jobs:
           rm: false
 
       - name: Compare / back up / optionally deploy
+        if: inputs.probe_only == false
         uses: appleboy/ssh-action@v1
         env:
           CMS_PATH: ${{ vars.CMS_MU_PLUGINS_PATH }}
