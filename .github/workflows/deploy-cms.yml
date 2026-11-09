@@ -1,0 +1,124 @@
+name: DaRoPlan CMS - manual deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      filename:
+        description: "Exact MU-plugin filename in cms/mu-plugins (e.g. daroplan-story-scenes-0.1.php)"
+        required: true
+        type: string
+      apply:
+        description: "Deploy to CMS? Leave unchecked for a safe dry-run"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daroplan-cms-deploy
+  cancel-in-progress: false
+
+jobs:
+  cms:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out reviewed dev branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate filename, source and PHP syntax
+        shell: bash
+        env:
+          DEPLOY_FILE: ${{ inputs.filename }}
+          CMS_PATH: ${{ vars.CMS_MU_PLUGINS_PATH }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_FILE" =~ ^daroplan-[A-Za-z0-9._-]+\.php$ ]] || { echo "Invalid MU-plugin filename"; exit 1; }
+          [[ -n "$CMS_PATH" ]] || { echo "Set repository variable CMS_MU_PLUGINS_PATH"; exit 1; }
+          [[ "$CMS_PATH" == *lab.otwartyplan.org*/wp-content/mu-plugins ]] || { echo "Verify the CMS directory path"; exit 1; }
+          test -f "cms/mu-plugins/$DEPLOY_FILE"
+          php -l "cms/mu-plugins/$DEPLOY_FILE"
+
+      - name: Confirm destination exists (do not edit files)
+        uses: appleboy/ssh-action@v1
+        env:
+          CMS_PATH: ${{ vars.CMS_MU_PLUGINS_PATH }}
+          DEPLOY_FILE: ${{ inputs.filename }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: CMS_PATH,DEPLOY_FILE
+          script: |
+            set -eu
+            test -d "$CMS_PATH"
+            test -d "$CMS_PATH/../../"
+            test -w "$CMS_PATH"
+            echo "CMS target verified: $CMS_PATH"
+            if [ -f "$CMS_PATH/$DEPLOY_FILE" ]; then
+              echo "Existing MU-plugin will be backed up if deployment is approved."
+            else
+              echo "New MU-plugin; no existing file will be replaced."
+            fi
+
+      - name: Transfer single file to staging (not the live directory)
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "cms/mu-plugins/${{ inputs.filename }}"
+          target: ".daroplan-cms-stage/${{ github.run_id }}"
+          strip_components: 2
+          overwrite: true
+          rm: false
+
+      - name: Compare / back up / optionally deploy
+        uses: appleboy/ssh-action@v1
+        env:
+          CMS_PATH: ${{ vars.CMS_MU_PLUGINS_PATH }}
+          DEPLOY_FILE: ${{ inputs.filename }}
+          APPLY: ${{ inputs.apply }}
+          RUN_ID: ${{ github.run_id }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: CMS_PATH,DEPLOY_FILE,APPLY,RUN_ID
+          script: |
+            set -eu
+            source_file="$HOME/.daroplan-cms-stage/$RUN_ID/$DEPLOY_FILE"
+            test -s "$source_file"
+            test -d "$CMS_PATH"
+            echo "Staged file checksum:"
+            sha256sum "$source_file"
+            if [ -f "$CMS_PATH/$DEPLOY_FILE" ]; then
+              echo "Current file checksum:"
+              sha256sum "$CMS_PATH/$DEPLOY_FILE"
+            fi
+            if command -v php >/dev/null 2>&1; then
+              php -l "$source_file"
+            fi
+            if [ "$APPLY" != "true" ]; then
+              echo "DRY RUN: no live CMS file changed."
+              rm -f "$source_file"
+              exit 0
+            fi
+            mkdir -p "$HOME/.daroplan-cms-backups/$RUN_ID"
+            if [ -f "$CMS_PATH/$DEPLOY_FILE" ]; then
+              cp -p "$CMS_PATH/$DEPLOY_FILE" "$HOME/.daroplan-cms-backups/$RUN_ID/$DEPLOY_FILE"
+            fi
+            temp_file="$CMS_PATH/.$DEPLOY_FILE.deploy-$RUN_ID"
+            cp "$source_file" "$temp_file"
+            chmod 644 "$temp_file"
+            mv -f "$temp_file" "$CMS_PATH/$DEPLOY_FILE"
+            test -s "$CMS_PATH/$DEPLOY_FILE"
+            rm -f "$source_file"
+            echo "CMS DEPLOY OK. Backups: ~/.daroplan-cms-backups/$RUN_ID/"
