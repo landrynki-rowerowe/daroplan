@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DaRoPlan — Opowieści i Sceny
  * Description: Etap 1 — organizacja Scen, parametry kamery, zasoby DASIE i odrębne API /narratives.
- * Version: 0.1.0
+ * Version: 0.1.1
  */
 if (!defined('ABSPATH')) exit;
 
@@ -106,12 +106,40 @@ function drps01_dasie_box($post) {
     $selected_ids = array_map('absint', (array)($config['resources']['dasie_ids'] ?? []));
     $items = get_posts(['post_type'=>'drp_dasie','post_status'=>['publish','draft'],'posts_per_page'=>-1,'orderby'=>'title','order'=>'ASC']);
     echo '<p>Wybierz wpisy DASIE. Powiązania nie modyfikują wpisów ani geometrii źródłowych.</p>';
-    echo '<select name="drps01_dasie_ids[]" multiple size="'.min(12,max(4,count($items))).'" style="width:100%;max-width:650px">';
+    echo '<div id="drps01-dasie-summary" style="background:#f6f7f7;border:1px solid #dcdcde;padding:12px;margin:12px 0;max-width:624px">';
+    echo '<strong>Powiązane materiały — <span id="drps01-dasie-count">0</span></strong>';
+    echo '<ul id="drps01-dasie-list" style="list-style:disc;padding-left:20px;margin:8px 0 0" aria-live="polite"></ul></div>';
+    echo '<select id="drps01-dasie-select" name="drps01_dasie_ids[]" multiple size="'.min(12,max(4,count($items))).'" style="width:100%;max-width:650px">';
     foreach ($items as $item) {
         echo '<option value="'.(int)$item->ID.'" '.selected(in_array($item->ID,$selected_ids,true),true,false).'>'.esc_html(get_the_title($item)).' (#'.(int)$item->ID.', '.esc_html($item->post_status).')</option>';
     }
     echo '</select><p class="description">Cmd/Ctrl + kliknięcie pozwala zaznaczać wiele. Szkice DASIE nie są udostępniane przez publiczne API Opowieści.</p>';
     echo '<input type="hidden" name="drps01_dasie_present" value="1">';
+    echo '<script>(function(){
+        var select = document.getElementById("drps01-dasie-select");
+        var list = document.getElementById("drps01-dasie-list");
+        var count = document.getElementById("drps01-dasie-count");
+        if (!select || !list || !count) return;
+        function refresh(){
+            var chosen = Array.prototype.filter.call(select.options, function(option){ return option.selected; });
+            count.textContent = chosen.length;
+            list.textContent = "";
+            if (!chosen.length) {
+                var empty = document.createElement("li");
+                empty.textContent = "Brak wybranych materiałów DASIE.";
+                list.appendChild(empty);
+                return;
+            }
+            chosen.forEach(function(option){
+                var item = document.createElement("li");
+                item.textContent = option.textContent;
+                list.appendChild(item);
+            });
+        }
+        select.addEventListener("change", refresh);
+        refresh();
+    })();</script>';
+
 }
 
 add_action('save_post_drp_scene', function($post_id) {
