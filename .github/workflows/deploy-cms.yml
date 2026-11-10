@@ -101,12 +101,13 @@ jobs:
           DEPLOY_FILE: ${{ inputs.filename }}
           APPLY: ${{ inputs.apply }}
           RUN_ID: ${{ github.run_id }}
+          PHP_CLI: ${{ vars.CMS_PHP_CLI }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          envs: CMS_PATH,DEPLOY_FILE,APPLY,RUN_ID
+          envs: CMS_PATH,DEPLOY_FILE,APPLY,RUN_ID,PHP_CLI
           script: |
             set -eu
             source_file="$HOME/.daroplan-cms-stage/$RUN_ID/$DEPLOY_FILE"
@@ -118,9 +119,13 @@ jobs:
               echo "Current file checksum:"
               sha256sum "$CMS_PATH/$DEPLOY_FILE"
             fi
-            if command -v php >/dev/null 2>&1; then
-              php -l "$source_file"
-            fi
+            case "$PHP_CLI" in
+              php74|php8|php81|php82|php83|php84|php85) ;;
+              *) echo "Set CMS_PHP_CLI to the PHP version used by lab.otwartyplan.org (e.g. php83)."; exit 1 ;;
+            esac
+            command -v "$PHP_CLI" >/dev/null 2>&1 || { echo "Configured PHP CLI unavailable: $PHP_CLI"; exit 1; }
+            "$PHP_CLI" -v
+            "$PHP_CLI" -l "$source_file"
             if [ "$APPLY" != "true" ]; then
               echo "DRY RUN: no live CMS file changed."
               rm -f "$source_file"
