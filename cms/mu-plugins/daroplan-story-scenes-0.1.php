@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DaRoPlan — Opowieści i Sceny
  * Description: Etap 1 — organizacja Scen, parametry kamery, zasoby DASIE i odrębne API /narratives.
- * Version: 0.1.1
+ * Version: 0.1.2
  */
 if (!defined('ABSPATH')) exit;
 
@@ -53,7 +53,7 @@ function drps01_story_box($post) {
         $url = wp_nonce_url(add_query_arg(['action'=>'drps01_new_scene','story_id'=>$post->ID], admin_url('admin-post.php')), 'drps01_new_scene_'.$post->ID);
         echo '<a class="button button-primary" href="'.esc_url($url).'">Dodaj Scenę</a>';
     }
-    echo '<p class="description">Kolejność zmienisz w polu Atrybuty → Kolejność w edytorze Sceny.</p>';
+    echo '<p class="description">Kolejność zmienisz w polu Kolejność Sceny w sekcji Opowieść, układ i kamera.</p>';
 }
 add_action('admin_post_drps01_new_scene', function() {
     $story_id = absint($_GET['story_id'] ?? 0);
@@ -88,6 +88,7 @@ function drps01_scene_box($post) {
     echo '</select></p><p><label for="drps01_layout"><strong>Układ Sceny</strong></label><br><select name="drps01_layout" id="drps01_layout">';
     foreach (drps01_layouts() as $key => $name) echo '<option value="'.esc_attr($key).'" '.selected($layout,$key,false).'>'.esc_html($name).'</option>';
     echo '</select></p><p><strong>Kamera mapy</strong> (wersja 0.1: wartości liczbowe, wizualny edytor później)</p>';
+    echo '<p><label for="drps01_order"><strong>Kolejność Sceny</strong></label><br><input type="number" id="drps01_order" name="drps01_order" min="0" max="2147483647" step="1" value="'.esc_attr((string)$post->menu_order).'"></p><p class="description">Sceny są wyświetlane od najmniejszej do największej wartości.</p>';
     $fields = [
         'lon'=>['Długość geograficzna', $center[0] ?? 19.94, '0.000001'],
         'lat'=>['Szerokość geograficzna', $center[1] ?? 50.06, '0.000001'],
@@ -172,6 +173,12 @@ add_action('save_post_drp_scene', function($post_id) {
             $p = get_post($id);
             return $p && $p->post_type === 'drp_dasie' && in_array($p->post_status, ['publish','draft'], true);
         }));
+    }
+    if (isset($_POST['drps01_order']) && is_scalar($_POST['drps01_order'])) {
+        $order = filter_var(wp_unslash($_POST['drps01_order']), FILTER_VALIDATE_INT, ['options'=>['min_range'=>0,'max_range'=>2147483647]]);
+        if ($order !== false && (int)get_post_field('menu_order', $post_id) !== $order) {
+            wp_update_post(['ID'=>$post_id, 'menu_order'=>$order]);
+        }
     }
     update_post_meta($post_id, 'drp_story_id', $parent);
     update_post_meta($post_id, '_drps01_layout', $layout);
