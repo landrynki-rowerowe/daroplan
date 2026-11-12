@@ -309,7 +309,9 @@ async function loadDasieCms(){
  finally{dasieCmsLoading=false;if(mode==='historia')renderControls()}
 }
 function restoreThematicLayers(){
- if(!sourcesReady||!map||!map.getStyle())return;
+ // getStyle() serializuje styl i rzuca wyjątek, zanim Mapbox zakończy ładowanie.
+ // Event style.load ponownie wywoła odtworzenie warstw po inicjalizacji stylu.
+ if(!sourcesReady||!map||!map.isStyleLoaded())return;
  try{
    hideStyleThemes();
    createLayers();
