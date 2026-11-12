@@ -4,7 +4,7 @@
  */
 (()=>{
  'use strict';
- const API='https://lab.otwartyplan.org/wp-json/daroplan/v1/landrynki';
+ const API='api/landrynki.php';
  const isRecord=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
  const asText=x=>typeof x==='string'?x:'';
  function imageURL(value){
@@ -37,7 +37,7 @@
  async function detail(id,options={}){
   const key=Number(id);
   if(!Number.isSafeInteger(key)||key<=0)throw new TypeError('Landrynki API: nieprawidłowy identyfikator');
-  const data=await getJSON(API+'/'+key,options);
+  const data=await getJSON(API+'?id='+key,options);
   if(!isRecord(data)||!Array.isArray(data.routes))throw new Error('Landrynki API: nieprawidłowe szczegóły paczuszki');
   const routes=data.routes.map(route=>{
    if(!isRecord(route)||typeof route.id!=='string'||!Array.isArray(route.geometry?.coordinates)||route.geometry?.type!=='LineString')return null;
