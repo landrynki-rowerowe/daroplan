@@ -1,1 +1,17 @@
-.dp-narrative{position:fixed;z-index:1000;right:12px;top:64px;bottom:88px;width:min(440px,46vw);box-sizing:border-box;background:#fff;color:#202124;border-radius:18px;padding:16px;overflow:auto;box-shadow:0 8px 32px #0004;font:inherit;display:flex;flex-direction:column;gap:12px}.dp-narrative header,.dp-narrative nav{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.dp-narrative h2,.dp-narrative h3{margin:0;font-size:1.15rem}.dp-narrative button{border:1px solid #bbb;border-radius:8px;background:#fff;color:#222;padding:9px;cursor:pointer}.dp-narrative button:disabled{opacity:.4;cursor:default}.dp-narrative-copy img{max-width:100%;height:auto}.dp-narrative[data-layout="map-full"]{top:auto;bottom:78px;left:12px;right:12px;width:auto;max-height:35vh;padding:10px}.dp-narrative[data-layout="content-full"]{inset:64px 12px 78px;width:auto}.dp-narrative nav{margin-top:auto}.dp-narrative-copy{line-height:1.5}@media(max-width:700px){.dp-narrative{top:auto;left:8px;right:8px;bottom:65px;width:auto;height:48vh}.dp-narrative[data-layout="map-full"]{height:auto;max-height:30vh;bottom:65px}.dp-narrative[data-layout="content-full"]{inset:56px 8px 65px;height:auto;width:auto}}
+/* STORY shares #infoPanel and the existing responsive mobile sheet. */
+.dp-narrative{width:100%;min-width:0;display:flex;flex-direction:column;gap:12px;color:inherit}
+.dp-narrative header{display:flex;align-items:center;justify-content:space-between}
+.dp-narrative h2{font-size:1.25rem;margin:0}
+.dp-narrative h3{font-size:1rem;margin:0}
+.dp-narrative h4{font-size:.85rem;margin:8px 0;color:#526673}
+.dp-narrative nav{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0}
+.dp-narrative button{border:1px solid #d5dce2;border-radius:9px;background:#fff;color:#203444;padding:9px 11px;cursor:pointer}
+.dp-narrative button:disabled{opacity:.4;cursor:default}
+.dp-narrative-copy{line-height:1.55}
+.dp-narrative-copy img{max-width:100%;height:auto}
+.dp-narrative-dasie{border-top:1px solid #e3e8ec;padding-top:12px}
+.dasie-materials{width:100%}
+.dasie-linked-material+.dasie-linked-material{border-top:1px solid #edf0f2;margin-top:14px;padding-top:14px}
+.dasie-linked-material .tweet-embed{margin:4px 0 10px;min-height:90px}
+@media(min-width:701px){#infoPanel.info-panel{border-radius:20px 0 0 20px;overflow:hidden}}
+@media(max-width:700px){.dp-narrative nav{gap:6px}.dp-narrative nav button{padding:8px}}
