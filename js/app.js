@@ -14,6 +14,18 @@ let dasieCmsData=null,dasieCmsError='',dasieCmsLoading=false,selectedDasieTweetI
 // Padding mapy wynika z panelu, a nie ze stanu udostępnianego URL.
 let panelCameraWidth=0,lastCameraBottom=0;
 const mobileSheet = {state:'hidden',dragging:false,startY:0,startHeight:0,moved:false};
+// Scroll trzymamy lokalnie, bez zapisu do CMS ani sieci; tylko w trakcie ukrycia panelu STORY.
+let hiddenStoryScroll=null;
+function rememberStoryScroll(){
+ if(!window.DPNarratives?.active())return;
+ hiddenStoryScroll={content:ui.content.scrollTop,panel:ui.panel.scrollTop};
+}
+function restoreStoryScroll(){
+ if(!hiddenStoryScroll)return;
+ const {content,panel}=hiddenStoryScroll;
+ requestAnimationFrame(()=>{if(!window.DPNarratives?.active())return;ui.content.scrollTop=content;ui.panel.scrollTop=panel});
+}
+
 const isMobileSheet = ()=>window.matchMedia('(max-width:700px)').matches;
 function sheetSizes(){
  const h=window.innerHeight;
@@ -34,7 +46,7 @@ function syncMobileSheet(animate=true){
 }
 function setMobileSheet(state,animate=true){
  if(!isMobileSheet())return;
- if(state==='hidden'&&mobileSheet.state!=='hidden')window.DPLandrynki?.onPanelHide();
+ if(state==='hidden'&&mobileSheet.state!=='hidden'){rememberStoryScroll();window.DPLandrynki?.onPanelHide();}
  mobileSheet.state=state;
  ui.panel.classList.remove('hidden','expanded');
  document.body.classList.toggle('panel-open',state!=='hidden');
@@ -611,7 +623,7 @@ function updatePanelTab(){
  const small=window.matchMedia('(max-width:700px)').matches;
  btn.style.right=(!small&&opened)?Math.max(0,window.innerWidth-rect.left-1)+'px':'0px';
 }
-function closePanel(){if(isMobileSheet()){setMobileSheet('hidden');return;}window.DPLandrynki?.onPanelHide();ui.panel.classList.remove('welcome-view');clearFeatureHighlight();ui.panel.classList.add('hidden');document.body.classList.remove('panel-open');$('layersBtn').setAttribute('aria-expanded','false');updatePanelTab();updatePanelCamera();}
+function closePanel(){if(isMobileSheet()){setMobileSheet('hidden');return;}rememberStoryScroll();window.DPLandrynki?.onPanelHide();ui.panel.classList.remove('welcome-view');clearFeatureHighlight();ui.panel.classList.add('hidden');document.body.classList.remove('panel-open');$('layersBtn').setAttribute('aria-expanded','false');updatePanelTab();updatePanelCamera();}
 // Panel powitalny: nie miesza się z konfiguracją warstw ani z zaznaczeniem obiektu.
 const welcomeSlides=[
  {title:'Landrynki Rowerowe',body:'Zobacz przejazdy przez krakowskie skrzyżowania. Kolorowe punkty prowadzą do filmów z tras.',mode:'historia',action:'Odkryj Landrynki',landrynki:true},
@@ -1005,10 +1017,10 @@ async function search(query){if(!query.trim())return;ui.results.classList.remove
 function hideLocation(){geoRequest++;if(locationMarker){locationMarker.remove();locationMarker=null;}$('locate').classList.remove('is-active');$('locate').setAttribute('aria-pressed','false');$('locate').title='Pokaż moją lokalizację'}
 function init(){base=baseFromURL();restoringShareState=true;restoreSharedView();if(!window.mapboxgl){$('status').textContent='Nie załadowano Mapbox GL JS';toast('Nie udało się załadować Mapbox GL JS');return}mapboxgl.accessToken=cfg.token;map=new mapboxgl.Map({container:'map',style:cfg.basemaps[baseFromURL()],center:cfg.home,zoom:cfg.zoom,maxZoom:16,hash:true,attributionControl:true});map.addControl(new mapboxgl.NavigationControl({showCompass:true}),'bottom-right');map.addControl(new mapboxgl.ScaleControl({unit:'metric',maxWidth:90}),'bottom-left');window.DPRuch?.init(map,{open:()=>{if(mode==='ruch')openRuchPanel()}});window.DPLandrynki?.init(map,(title,node)=>{ui.content.replaceChildren(node);openPanel('content')},exitLandrynkiToStory);window.DPNarratives?.init(map,{
  enter:()=>{window.DPLandrynki?.deactivate();landrynkiOverlayActive=false;clearFeatureHighlight();syncVisibility();},
- show:node=>{ui.panel.classList.add('dp-story-active');ui.content.replaceChildren(node);openPanel('content');},
+ show:node=>{hiddenStoryScroll=null;ui.panel.classList.add('dp-story-active');ui.content.replaceChildren(node);openPanel('content');},
  materials:storyDasieMaterials,
- reveal:()=>{if(ui.content.firstElementChild?.classList.contains('dp-narrative'))openPanel('content')},
- leave:restorePanel=>{ui.panel.classList.remove('dp-story-active');syncVisibility();renderControls();if(restorePanel!==false)openPanel('layers');}
+ reveal:()=>{if(ui.content.firstElementChild?.classList.contains('dp-narrative')){openPanel('content');restoreStoryScroll()}},
+ leave:restorePanel=>{hiddenStoryScroll=null;ui.panel.classList.remove('dp-story-active');syncVisibility();renderControls();if(restorePanel!==false)openPanel('layers');}
 });loadDasieCms();map.on('style.load',()=>{styleRevision++;restoreThematicLayers();window.DPLandrynki?.refreshOpacity?.()});
 // Awaryjna kontrola: jeśli źródła zostały usunięte w czasie szybkich zmian stylu,
 // przywróć je po zakończeniu ładowania, bez wywoływania dodatkowych żądań CMS.
