@@ -703,6 +703,58 @@ function showVeloFeature(p,group){
  extra.append(textNode('p','Źródło: VeloMałopolska / Google My Maps','source-credit'));
  showPanel(name,category,{},extra);
 }
+// API /dasie zwraca jedną cechę na relację wpis–geometria, nie na unikalną geometrię.
+// Nie grupujemy po tweet_id: jeden wpis może obejmować wiele różnych lokalizacji.
+function dasieGeometryKey(feature){
+ const id=feature.properties?.geometry_id ?? feature.properties?.geometryId ?? feature.properties?.geom_id;
+ if(id!==undefined&&id!==null&&String(id).trim()!=='')return 'id:'+String(id);
+ // Bez jawnego geometry_id porównujemy dokładną geometrię, nie relacyjne Feature.id.
+ return 'shape:'+JSON.stringify(feature.geometry||null);
+}
+function dasieRelatedEntries(feature){
+ if(!dasieCmsData?.features?.length)return [feature];
+ // Renderowana cecha Mapbox (zwłaszcza LineString) może być przycięta do kafla.
+ // Do porównania geometrii używamy pełnego obiektu z CMS, zidentyfikowanego po Feature.id.
+ const canonical=dasieCmsData.features.find(item=>String(item.id)===String(feature.id))||feature;
+ const key=dasieGeometryKey(canonical);
+ const matches=dasieCmsData.features.filter(item=>dasieGeometryKey(item)===key);
+ return matches.length?matches:[feature];
+}
+function showDasieGeometry(feature,label){
+ const extra=document.createElement('div');
+ const seen=new Set();
+ const entries=dasieRelatedEntries(feature).filter(item=>{
+  const p=item.properties||{};
+  const identity=p.dasie_id!=null?'dasie:'+String(p.dasie_id):p.tweet_id?'tweet:'+String(p.tweet_id):'relation:'+String(item.id);
+  if(seen.has(identity))return false;
+  seen.add(identity);return true;
+ });
+ extra.append(textNode('p',entries.length===1?'1 powiązany materiał':entries.length+' powiązane materiały','source-credit'));
+ const embeds=[];
+ for(const item of entries){
+  const p=item.properties||{};
+  const section=document.createElement('section');
+  section.className='dasie-linked-material';
+  const heading=String(p.title||p.name||p.nazwa||'Materiał DASIE');
+  section.append(textNode('h3',heading));
+  const date=p.publication_date||p.published_at||p.date||p.publish_date;
+  if(date)section.append(textNode('small',String(date).slice(0,10)));
+  const tweetId=String(p.tweet_id||'').trim();
+  const platform=String(p.platform||'').toLowerCase();
+  const rawUrl=p.url||p.source_url||p.post_url||p.original_url||'';
+  let materialUrl='';
+  try{const u=new URL(String(rawUrl));if(['http:','https:'].includes(u.protocol))materialUrl=u.href}catch(_){}
+  if(tweetId&&(!platform||platform==='x'||platform==='twitter')){
+   section.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));
+   const embed=document.createElement('div');embed.className='tweet-embed';
+   section.append(embed);embeds.push([tweetId,embed]);
+  }else if(materialUrl)section.append(link('Otwórz materiał źródłowy ↗',materialUrl));
+  else section.append(textNode('p','Brak odnośnika do materiału źródłowego.','note'));
+  extra.append(section);
+ }
+ showPanel(label,'DASIE — archiwum',{},extra);
+ for(const [id,container] of embeds)renderTweet(id,container);
+}
 function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.id));if(!f)return;const group=layerIndex.get(f.layer.id);if(group==='counters'&&window.DPRuch?.visible()){window.DPRuch.clickFeature(f);return;}if(group==='sim'){
  if(!highlightSimRoute(f))highlightFeature(f);
 }else if(group==='study'){
@@ -714,7 +766,7 @@ function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.i
   .catch(err=>{console.warn('[DaRoPlan] Pełny odcinek VeloM niedostępny',err);if(activeFeature===clicked)highlightFeature(clicked)});
 }else if(group==='dasie'){
  if(!highlightDasieGroup(f))highlightFeature(f);
-}else highlightFeature(f);const p=f.properties||{};if(group==='velo-objazdy'){const extra=document.createElement('div');if(p.description)extra.append(linkedDescription(String(p.description)));extra.append(textNode('p','Uwaga: wpis może być archiwalny. Zweryfikuj bieżącą sytuację.','source-credit'));showPanel(p.name||'Objazd / utrudnienie','VeloM — objazdy i utrudnienia',{},extra);return;}if(group==='crossings'){const extra=document.createElement('div');const names={zdmk:'Wykonane przez ZDMK',remont:'Trwa remont / budowa',propozycja:'Propozycja społeczna',priorytet:'Priorytet — do zrobienia',nzdr:'Wykonane przez NZDR'};if(p.description)extra.append(linkedDescription(String(p.description)));else extra.append(textNode('p','Brak dodatkowego opisu.'));extra.append(textNode('p','Źródło: mapa gładkich przejazdów / Google My Maps','source-credit'));showPanel(p.name||'Gładki przejazd',names[p.category]||'Gładkie przejazdy',{},extra);return;}if(group==='audyty'){const extra=document.createElement('div');if(p.publish_date)extra.append(textNode('p','Opublikowano: '+String(p.publish_date).slice(0,10)));if(p.modified_date)extra.append(textNode('p','Zmodyfikowano: '+String(p.modified_date).slice(0,10)));if(typeof p.link==='string'&&/^https:\/\//i.test(p.link))extra.append(link('Otwórz audyt ZTP ↗',p.link));showPanel(p.title||'Audyt rowerowy',p.categories||'Audyt ZTP',{},extra);return;}if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'&&p.tweet_id){const tweetId=String(p.tweet_id).trim();extra.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));const embed=document.createElement('div');embed.className='tweet-embed';extra.append(embed);showPanel(label,'DASIE — archiwum',p,extra);renderTweet(tweetId,embed);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
+}else highlightFeature(f);const p=f.properties||{};if(group==='velo-objazdy'){const extra=document.createElement('div');if(p.description)extra.append(linkedDescription(String(p.description)));extra.append(textNode('p','Uwaga: wpis może być archiwalny. Zweryfikuj bieżącą sytuację.','source-credit'));showPanel(p.name||'Objazd / utrudnienie','VeloM — objazdy i utrudnienia',{},extra);return;}if(group==='crossings'){const extra=document.createElement('div');const names={zdmk:'Wykonane przez ZDMK',remont:'Trwa remont / budowa',propozycja:'Propozycja społeczna',priorytet:'Priorytet — do zrobienia',nzdr:'Wykonane przez NZDR'};if(p.description)extra.append(linkedDescription(String(p.description)));else extra.append(textNode('p','Brak dodatkowego opisu.'));extra.append(textNode('p','Źródło: mapa gładkich przejazdów / Google My Maps','source-credit'));showPanel(p.name||'Gładki przejazd',names[p.category]||'Gładkie przejazdy',{},extra);return;}if(group==='audyty'){const extra=document.createElement('div');if(p.publish_date)extra.append(textNode('p','Opublikowano: '+String(p.publish_date).slice(0,10)));if(p.modified_date)extra.append(textNode('p','Zmodyfikowano: '+String(p.modified_date).slice(0,10)));if(typeof p.link==='string'&&/^https:\/\//i.test(p.link))extra.append(link('Otwórz audyt ZTP ↗',p.link));showPanel(p.title||'Audyt rowerowy',p.categories||'Audyt ZTP',{},extra);return;}if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'){showDasieGeometry(f,label);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
 
 function renderTweet(id,container){
   const embed=()=>{if(!window.twttr?.widgets?.createTweet)return false;
