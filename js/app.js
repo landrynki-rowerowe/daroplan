@@ -38,7 +38,7 @@ function setMobileSheet(state,animate=true){
  mobileSheet.state=state;
  ui.panel.classList.remove('hidden','expanded');
  document.body.classList.toggle('panel-open',state!=='hidden');
- if(state==='hidden'){clearSelection09();ui.panel.classList.remove('welcome-view');}
+ if(state==='hidden'){if(window.DPNarratives?.active())window.DPNarratives.exit(false);clearSelection09();ui.panel.classList.remove('welcome-view');}
  syncMobileSheet(animate);
 }
 function setupMobileSheet(){
@@ -730,41 +730,53 @@ function dasiePublicationTime(props={}){
  }
  return -Infinity;
 }
-function showDasieGeometry(feature,label){
- const extra=document.createElement('div');
+// Jedna prezentacja materiałów używana przez kliknięcie geometrii i Sceny STORY.
+function dasieUniqueSorted(features){
  const seen=new Set();
- const entries=dasieRelatedEntries(feature).filter(item=>{
+ return features.filter(item=>{
   const p=item.properties||{};
   const identity=p.dasie_id!=null?'dasie:'+String(p.dasie_id):p.tweet_id?'tweet:'+String(p.tweet_id):'relation:'+String(item.id);
   if(seen.has(identity))return false;
   seen.add(identity);return true;
  }).sort((a,b)=>dasiePublicationTime(b.properties)-dasiePublicationTime(a.properties));
- extra.append(textNode('p',entries.length===1?'1 powiązany materiał':entries.length+' powiązane materiały','source-credit'));
+}
+function dasieMaterialsView(features){
+ const container=document.createElement('div');
+ container.className='dasie-materials';
  const embeds=[];
- for(const item of entries){
+ for(const item of dasieUniqueSorted(features)){
   const p=item.properties||{};
   const section=document.createElement('section');
   section.className='dasie-linked-material';
-  const heading=String(p.title||p.name||p.nazwa||'Materiał DASIE');
-  section.append(textNode('h3',heading));
-  const date=p.publication_date||p.published_at||p.date||p.publish_date;
-  if(date)section.append(textNode('small',String(date).slice(0,10)));
   const tweetId=String(p.tweet_id||'').trim();
   const platform=String(p.platform||'').toLowerCase();
   const rawUrl=p.url||p.source_url||p.post_url||p.original_url||'';
   let materialUrl='';
   try{const u=new URL(String(rawUrl));if(['http:','https:'].includes(u.protocol))materialUrl=u.href}catch(_){}
   if(tweetId&&(!platform||platform==='x'||platform==='twitter')){
-   section.append(link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(tweetId)));
    const embed=document.createElement('div');embed.className='tweet-embed';
    section.append(embed);embeds.push([tweetId,embed]);
   }else if(materialUrl)section.append(link('Otwórz materiał źródłowy ↗',materialUrl));
-  else section.append(textNode('p','Brak odnośnika do materiału źródłowego.','note'));
-  extra.append(section);
+  else section.append(textNode('p','Podgląd materiału niedostępny.','note'));
+  container.append(section);
  }
- showPanel(label,'DASIE — archiwum',{},extra);
- for(const [id,container] of embeds)renderTweet(id,container);
+ return {node:container,activate:()=>{for(const [id,elem] of embeds)renderTweet(id,elem)}};
 }
+function showDasieGeometry(feature,label){
+ const view=dasieMaterialsView(dasieRelatedEntries(feature));
+ // W panelu wystarczy nazwa obiektu i materiały. Nie powtarzamy tytułów, liczników ani linków nad osadzonym X.
+ ui.content.replaceChildren(textNode('h2',label),view.node);
+ openPanel('content');
+ view.activate();
+}
+function storyDasieMaterials(ids){
+ const idSet=new Set((ids||[]).map(String));
+ if(!idSet.size||!dasieCmsData?.features?.length)return null;
+ const features=dasieCmsData.features.filter(f=>idSet.has(String(f.properties?.dasie_id??'')));
+ if(!features.length)return null;
+ return dasieMaterialsView(features);
+}
+
 function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.id));if(!f)return;const group=layerIndex.get(f.layer.id);if(group==='counters'&&window.DPRuch?.visible()){window.DPRuch.clickFeature(f);return;}if(group==='sim'){
  if(!highlightSimRoute(f))highlightFeature(f);
 }else if(group==='study'){
@@ -779,9 +791,23 @@ function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.i
 }else highlightFeature(f);const p=f.properties||{};if(group==='velo-objazdy'){const extra=document.createElement('div');if(p.description)extra.append(linkedDescription(String(p.description)));extra.append(textNode('p','Uwaga: wpis może być archiwalny. Zweryfikuj bieżącą sytuację.','source-credit'));showPanel(p.name||'Objazd / utrudnienie','VeloM — objazdy i utrudnienia',{},extra);return;}if(group==='crossings'){const extra=document.createElement('div');const names={zdmk:'Wykonane przez ZDMK',remont:'Trwa remont / budowa',propozycja:'Propozycja społeczna',priorytet:'Priorytet — do zrobienia',nzdr:'Wykonane przez NZDR'};if(p.description)extra.append(linkedDescription(String(p.description)));else extra.append(textNode('p','Brak dodatkowego opisu.'));extra.append(textNode('p','Źródło: mapa gładkich przejazdów / Google My Maps','source-credit'));showPanel(p.name||'Gładki przejazd',names[p.category]||'Gładkie przejazdy',{},extra);return;}if(group==='audyty'){const extra=document.createElement('div');if(p.publish_date)extra.append(textNode('p','Opublikowano: '+String(p.publish_date).slice(0,10)));if(p.modified_date)extra.append(textNode('p','Zmodyfikowano: '+String(p.modified_date).slice(0,10)));if(typeof p.link==='string'&&/^https:\/\//i.test(p.link))extra.append(link('Otwórz audyt ZTP ↗',p.link));showPanel(p.title||'Audyt rowerowy',p.categories||'Audyt ZTP',{},extra);return;}if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'){showDasieGeometry(f,label);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
 
 function renderTweet(id,container){
-  const embed=()=>{if(!window.twttr?.widgets?.createTweet)return false;
-    window.twttr.widgets.createTweet(id,container,{lang:'pl',dnt:true,align:'center'}).then(node=>{if(!node)container.append(textNode('p','Podgląd niedostępny — użyj linku do oryginalnego wpisu.'));}).catch(()=>container.append(textNode('p','Nie udało się osadzić wpisu. Link powyżej pozostaje dostępny.')));return true;};
-  if(embed())return;let tries=0;const interval=setInterval(()=>{if(!container.isConnected||embed()||++tries>40)clearInterval(interval);},200);
+  // Link źródłowy pokazujemy dopiero jeśli osadzenie X się nie powiedzie.
+  const fallback=()=>{
+   if(!container.isConnected||container.querySelector('a.action'))return;
+   container.append(textNode('p','Podgląd wpisu niedostępny.'),link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(id)));
+  };
+  const embed=()=>{
+   if(!window.twttr?.widgets?.createTweet)return false;
+   window.twttr.widgets.createTweet(id,container,{lang:'pl',dnt:true,align:'center'})
+    .then(node=>{if(!node)fallback()}).catch(fallback);
+   return true;
+  };
+  if(embed())return;
+  let tries=0;
+  const interval=setInterval(()=>{
+   if(!container.isConnected||embed()){clearInterval(interval);return}
+   if(++tries>40){clearInterval(interval);fallback()}
+  },200);
 }
 function attachClicks(){map.on('click',e=>{if(window.DPNarratives?.active())return;if(window.DPRuch?.visible()&&map.getLayer('dp-ruch-points')){const fs=map.queryRenderedFeatures(e.point,{layers:['dp-ruch-points']});if(fs.length){window.DPRuch.clickFeature(fs[0]);return;}}const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none'&&!(mode==='ruch'&&layerIndex.get(id)?.startsWith('infra:')));const feats=ids.length?map.queryRenderedFeatures(e.point,{layers:ids}):[];if(feats.length){const openAudit=feats.find(f=>f.layer.id==='dp-audyty-otwarte-punkty');if(openAudit){selectedFeature({features:[openAudit]});return;}const cluster=feats.find(f=>f.layer.id==='dp-audyty-zamkniete-klastry');if(cluster){const source=map.getSource('dp-audytyZamkniete');source.getClusterExpansionZoom(cluster.properties.cluster_id,(err,zoom)=>{if(!err)map.easeTo({center:cluster.geometry.coordinates,zoom:Math.min(zoom,16),duration:450})});return;}selectedFeature({features:feats});return} if(activeFeature){clearSelection09();if(mode==='ruch')openRuchPanel();else{renderControls();openPanel('layers')}} });map.on('mousemove',e=>{const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none'&&!(mode==='ruch'&&layerIndex.get(id)?.startsWith('infra:')));map.getCanvas().style.cursor=ids.length&&map.queryRenderedFeatures(e.point,{layers:ids}).length?'pointer':''})}
 // 0.9.1: niezależne presety warstw dla modułów i kontrolowane nakładki.
@@ -973,7 +999,12 @@ function renderControls(){
 // Wyszukiwanie lokalizacji Mapbox Geocoding. Własny indeks treści dodamy w następnym etapie.
 async function search(query){if(!query.trim())return;ui.results.classList.remove('hidden');ui.results.replaceChildren(textNode('p','Wyszukiwanie miejsc…'));const controller=new AbortController();if(search.previous)search.previous.abort();search.previous=controller;try{const url='https://api.mapbox.com/geocoding/v5/mapbox.places/'+encodeURIComponent(query)+'.json?access_token='+encodeURIComponent(cfg.token)+'&country=pl&language=pl&limit=6&proximity=19.94,50.06';const response=await fetch(url,{signal:controller.signal});if(!response.ok)throw Error('HTTP '+response.status);const data=await response.json();ui.results.replaceChildren();if(!data.features?.length){ui.results.append(textNode('p','Nie znaleziono lokalizacji.'));return}for(const f of data.features){const btn=document.createElement('button');btn.append(textNode('strong',f.text||'Lokalizacja'),textNode('small',f.place_name||''));btn.addEventListener('click',()=>{ui.results.classList.add('hidden');ui.input.value=f.place_name||f.text;map.flyTo({center:f.center,zoom:Math.max(map.getZoom(),15),essential:true});const nearby=textNode('p','Wybierz obiekt na mapie, aby zobaczyć jego dane. Automatyczne wyszukiwanie powiązanych treści w promieniu miejsca jest kolejnym etapem.');showPanel(f.text||'Lokalizacja','Wynik wyszukiwania',{},nearby)});ui.results.append(btn)}}catch(e){if(e.name!=='AbortError'){ui.results.replaceChildren(textNode('p','Nie udało się wyszukać. Sprawdź dostęp geokodowania dla tokenu Mapbox.'))}}}
 function hideLocation(){geoRequest++;if(locationMarker){locationMarker.remove();locationMarker=null;}$('locate').classList.remove('is-active');$('locate').setAttribute('aria-pressed','false');$('locate').title='Pokaż moją lokalizację'}
-function init(){base=baseFromURL();restoringShareState=true;restoreSharedView();if(!window.mapboxgl){$('status').textContent='Nie załadowano Mapbox GL JS';toast('Nie udało się załadować Mapbox GL JS');return}mapboxgl.accessToken=cfg.token;map=new mapboxgl.Map({container:'map',style:cfg.basemaps[baseFromURL()],center:cfg.home,zoom:cfg.zoom,maxZoom:16,hash:true,attributionControl:true});map.addControl(new mapboxgl.NavigationControl({showCompass:true}),'bottom-right');map.addControl(new mapboxgl.ScaleControl({unit:'metric',maxWidth:90}),'bottom-left');window.DPRuch?.init(map,{open:()=>{if(mode==='ruch')openRuchPanel()}});window.DPLandrynki?.init(map,(title,node)=>{showPanel(title,'Landrynki Rowerowe',{},node)},exitLandrynkiToStory);window.DPNarratives?.init(map,{enter:()=>{window.DPLandrynki?.deactivate();landrynkiOverlayActive=false;closePanel();clearFeatureHighlight();syncVisibility();},leave:()=>{syncVisibility();renderControls();openPanel('layers');}});loadDasieCms();map.on('style.load',()=>{styleRevision++;restoreThematicLayers();window.DPLandrynki?.refreshOpacity?.()});
+function init(){base=baseFromURL();restoringShareState=true;restoreSharedView();if(!window.mapboxgl){$('status').textContent='Nie załadowano Mapbox GL JS';toast('Nie udało się załadować Mapbox GL JS');return}mapboxgl.accessToken=cfg.token;map=new mapboxgl.Map({container:'map',style:cfg.basemaps[baseFromURL()],center:cfg.home,zoom:cfg.zoom,maxZoom:16,hash:true,attributionControl:true});map.addControl(new mapboxgl.NavigationControl({showCompass:true}),'bottom-right');map.addControl(new mapboxgl.ScaleControl({unit:'metric',maxWidth:90}),'bottom-left');window.DPRuch?.init(map,{open:()=>{if(mode==='ruch')openRuchPanel()}});window.DPLandrynki?.init(map,(title,node)=>{showPanel(title,'Landrynki Rowerowe',{},node)},exitLandrynkiToStory);window.DPNarratives?.init(map,{
+ enter:()=>{window.DPLandrynki?.deactivate();landrynkiOverlayActive=false;clearFeatureHighlight();syncVisibility();},
+ show:node=>{ui.content.replaceChildren(node);openPanel('content');},
+ materials:storyDasieMaterials,
+ leave:restorePanel=>{syncVisibility();renderControls();if(restorePanel!==false)openPanel('layers');}
+});loadDasieCms();map.on('style.load',()=>{styleRevision++;restoreThematicLayers();window.DPLandrynki?.refreshOpacity?.()});
 // Awaryjna kontrola: jeśli źródła zostały usunięte w czasie szybkich zmian stylu,
 // przywróć je po zakończeniu ładowania, bez wywoływania dodatkowych żądań CMS.
 map.on('idle',()=>{
@@ -984,7 +1015,7 @@ map.on('idle',()=>{
  }
 });map.on('load',()=>{restoreThematicLayers();restoringShareState=false;updateShareURL();if(mode==='ruch'){openRuchPanel();}else{scheduleWelcome();}if(isMobileSheet()&&mode!=='ruch')setMobileSheet('hidden',false)});map.on('moveend',updateShareURL);window.addEventListener('popstate',()=>{const q=new URLSearchParams(location.search);const dest=q.get('m');if(dest&&moduleLayerIds[dest]&&dest!==mode){configureModes(dest,{restoreCamera:false});}if(mode==='ruch'){window.DPRuch?.restoreFromBrowser();if(ui.panel.classList.contains('hidden'))openRuchPanel();}});map.on('error',e=>console.warn('[DaRoPlan Mapbox]',e.error||e));attachClicks();loadAudytyDirect();
 Promise.all([detectSourceLayers(),fetch('data/studio-layers.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Brak pliku stylu');return r.json()})]).then(([,data])=>{styleLayers=data;sourcesReady=true;restoreThematicLayers()}).catch(e=>{console.error('[DaRoPlan] Konfiguracja:',e);toast('Nie wczytano konfiguracji Studium / SIM: '+e.message)});
-$('layersBtn').addEventListener('click',()=>{if(window.DPNarratives?.active()){window.DPNarratives.exit();return;}if(welcomeTimer){clearTimeout(welcomeTimer);welcomeTimer=null;}const isClosed=ui.panel.classList.contains('hidden')||(isMobileSheet()&&mobileSheet.state==='hidden');if(!isClosed)closePanel();else if(mode==='ruch')openRuchPanel();else if(mode==='historia'&&landrynkiOverlayActive&&window.DPLandrynki?.showCurrent?.()){}else {renderControls();openPanel('layers')}});window.addEventListener('resize',()=>{updatePanelTab();if(isMobileSheet())syncMobileSheet(false);else updatePanelCamera(false)});if($('infoClose'))$('infoClose').onclick=()=>{if(mode==='ruch'){openRuchPanel();return;}if(!ui.content.classList.contains('hidden')){clearSelection09();renderControls();openPanel('layers')}else closePanel()};$('panelExpand').onclick=()=>{if(isMobileSheet())return;const expanded=ui.panel.classList.toggle('expanded');$('panelExpand').setAttribute('aria-expanded',String(expanded));$('panelExpand').textContent=expanded?'⌄':'⌃'};setupMobileSheet();setupBaseControl();document.querySelectorAll('[data-mode]').forEach(el=>el.addEventListener('click',()=>{configureModes(el.dataset.mode);renderControls()}));$('searchForm').addEventListener('submit',e=>{e.preventDefault();search(ui.input.value)});$('brand').onclick=()=>{if(window.DPNarratives?.active())window.DPNarratives.exit();if(welcomeTimer){clearTimeout(welcomeTimer);welcomeTimer=null;}showWelcome(0)};$('locate').onclick=()=>{if(locationMarker){hideLocation();return}if(!navigator.geolocation)return toast('Geolokalizacja niedostępna');const requestId=++geoRequest;navigator.geolocation.getCurrentPosition(p=>{if(requestId!==geoRequest)return;const coords=[p.coords.longitude,p.coords.latitude];if(!locationMarker){const dot=document.createElement('div');dot.className='user-location-dot';dot.title='Twoja lokalizacja';locationMarker=new mapboxgl.Marker({element:dot,anchor:'center'}).setLngLat(coords).addTo(map)}else{locationMarker.setLngLat(coords)}$('locate').classList.add('is-active');$('locate').setAttribute('aria-pressed','true');$('locate').title='Ukryj moją lokalizację';map.flyTo({center:coords,zoom:Math.max(map.getZoom(),15),essential:true});},()=>toast('Nie udało się uzyskać lokalizacji. Sprawdź uprawnienia i HTTPS.'),{enableHighAccuracy:true,timeout:12000,maximumAge:30000})};$('share').onclick=async()=>{updateShareURL();try{await navigator.clipboard.writeText(location.href);toast('Skopiowano link do mapy')}catch(e){toast('Adres mapy: '+location.href)}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(window.DPNarratives?.active()){window.DPNarratives.exit();return;}ui.results.classList.add('hidden');if(activeFeature){clearSelection09();if(mode==='ruch')openRuchPanel();else{renderControls();openPanel('layers')}}else if(!ui.panel.classList.contains('hidden'))closePanel();else hideLocation()}});// Nowe podpisy i układ 0.9.1 bez przebudowy znanych identyfikatorów HTML.
+$('layersBtn').addEventListener('click',()=>{if(window.DPNarratives?.active()){window.DPNarratives.exit();return;}if(welcomeTimer){clearTimeout(welcomeTimer);welcomeTimer=null;}const isClosed=ui.panel.classList.contains('hidden')||(isMobileSheet()&&mobileSheet.state==='hidden');if(!isClosed)closePanel();else if(mode==='ruch')openRuchPanel();else if(mode==='historia'&&landrynkiOverlayActive&&window.DPLandrynki?.showCurrent?.()){}else {renderControls();openPanel('layers')}});window.addEventListener('resize',()=>{updatePanelTab();if(isMobileSheet())syncMobileSheet(false);else updatePanelCamera(false)});$('panelExpand').onclick=()=>{if(isMobileSheet())return;const expanded=ui.panel.classList.toggle('expanded');$('panelExpand').setAttribute('aria-expanded',String(expanded));$('panelExpand').textContent=expanded?'⌄':'⌃'};setupMobileSheet();setupBaseControl();document.querySelectorAll('[data-mode]').forEach(el=>el.addEventListener('click',()=>{configureModes(el.dataset.mode);renderControls()}));$('searchForm').addEventListener('submit',e=>{e.preventDefault();search(ui.input.value)});$('brand').onclick=()=>{if(window.DPNarratives?.active())window.DPNarratives.exit();if(welcomeTimer){clearTimeout(welcomeTimer);welcomeTimer=null;}showWelcome(0)};$('locate').onclick=()=>{if(locationMarker){hideLocation();return}if(!navigator.geolocation)return toast('Geolokalizacja niedostępna');const requestId=++geoRequest;navigator.geolocation.getCurrentPosition(p=>{if(requestId!==geoRequest)return;const coords=[p.coords.longitude,p.coords.latitude];if(!locationMarker){const dot=document.createElement('div');dot.className='user-location-dot';dot.title='Twoja lokalizacja';locationMarker=new mapboxgl.Marker({element:dot,anchor:'center'}).setLngLat(coords).addTo(map)}else{locationMarker.setLngLat(coords)}$('locate').classList.add('is-active');$('locate').setAttribute('aria-pressed','true');$('locate').title='Ukryj moją lokalizację';map.flyTo({center:coords,zoom:Math.max(map.getZoom(),15),essential:true});},()=>toast('Nie udało się uzyskać lokalizacji. Sprawdź uprawnienia i HTTPS.'),{enableHighAccuracy:true,timeout:12000,maximumAge:30000})};$('share').onclick=async()=>{updateShareURL();try{await navigator.clipboard.writeText(location.href);toast('Skopiowano link do mapy')}catch(e){toast('Adres mapy: '+location.href)}};document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(window.DPNarratives?.active()){window.DPNarratives.exit();return;}ui.results.classList.add('hidden');if(activeFeature){clearSelection09();if(mode==='ruch')openRuchPanel();else{renderControls();openPanel('layers')}}else if(!ui.panel.classList.contains('hidden'))closePanel();else hideLocation()}});// Nowe podpisy i układ 0.9.1 bez przebudowy znanych identyfikatorów HTML.
 const captions={infra:['INFRA','struktura'],ruch:['▥','Ruch'],historia:['◷','STORY'],trasy:['⌁','Trasy'],wiecej:['•••','Więcej']};
 for(const button of document.querySelectorAll('[data-mode]')){const entry=captions[button.dataset.mode];if(!entry)continue;button.replaceChildren();const icon=textNode('span',entry[0]);icon.className='module-symbol';const label=textNode('small',entry[1]);button.append(icon,label);button.title=button.dataset.mode==='infra'?'Infrastruktura':entry[1];
 if(button.dataset.mode==='ruch'||button.dataset.mode==='trasy'){
