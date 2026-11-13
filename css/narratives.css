@@ -13,5 +13,5 @@
 .dasie-materials{width:100%}
 .dasie-linked-material+.dasie-linked-material{border-top:1px solid #edf0f2;margin-top:14px;padding-top:14px}
 .dasie-linked-material .tweet-embed{margin:4px 0 10px;min-height:90px}
-@media(min-width:701px){#infoPanel.info-panel{border-radius:20px 0 0 20px;overflow:hidden}}
+@media(min-width:701px){#infoPanel.info-panel{border-radius:20px 0 0 20px;overflow:auto}}
 @media(max-width:700px){#infoClose{display:none!important}.dp-narrative nav{gap:6px}.dp-narrative nav button{padding:8px}}
