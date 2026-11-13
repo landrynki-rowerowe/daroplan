@@ -17,7 +17,7 @@
 @media(min-width:701px){#infoPanel.info-panel{border-radius:20px 0 0 20px;overflow:auto}}
 @media(max-width:700px){.dp-narrative-scene-nav button{padding:8px}}
 
-/* Desktop: oddzielna przewijalna sekcja — nav sticky dotyka górnej krawędzi panelu.
+/* Desktop: oddzielna przewijana sekcja — nav sticky dotyka górnej krawędzi panelu.
    Nie zostawiamy nad nawigacją przewijanego paska z treścią. */
 @media(min-width:701px){
  #infoPanel.info-panel.dp-story-active{
@@ -26,13 +26,27 @@
  }
  #infoPanel.dp-story-active #infoContent.panel-section{
   flex:1 1 auto;min-height:0;
-  padding:12px 24px 110px;
+  /* Zero górnego paddingu: sticky przylega do górnej krawędzi scrollportu. */
+  padding:0 24px 110px;
   overflow-y:auto;overflow-x:hidden;
   overscroll-behavior-y:contain;
  }
+ #infoPanel.dp-story-active .dp-narrative > header{padding-top:12px}
  #infoPanel.dp-story-active .dp-narrative-scene-nav{
-  top:0;z-index:10;
+  /* Białe tło na całą szerokość, bez prześwitującej fotografii nad nawigatorem. */
+  position:sticky;top:0;z-index:20;
+  align-self:stretch;width:calc(100% + 48px);
+  margin:0 -24px;
+  padding:10px 24px;
+  justify-content:center;gap:clamp(12px,2vw,24px);
+  background:#fff;
   box-shadow:0 2px 4px #15232c14;
+ }
+ #infoPanel.dp-story-active .dp-narrative-scene-nav button{
+  flex:0 0 auto;min-width:96px;
+ }
+ #infoPanel.dp-story-active .dp-narrative-scene-count{
+  min-width:48px;text-align:center;
  }
 }
 /* Mobile zachowuje istniejący panel dolny i przewijanie panel-section. */
