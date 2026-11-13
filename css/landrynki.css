@@ -37,3 +37,8 @@
 /* Wyróżnienie przejazdu odporne na zmianę podkładu Mapbox. */
 .dp-landrynki-dot.dp-landrynki-dimmed{opacity:.5!important}
 .dp-landrynki-dot:not(.dp-landrynki-dimmed){opacity:1!important}
+
+/* Strzałka po lewej stronie tytułu w Landrynkach. */
+.dp-landrynki-heading{display:flex;align-items:center;gap:8px;min-width:0}
+.dp-landrynki-heading .dp-landrynki-back{flex:none;align-self:center;margin:0}
+.dp-landrynki-title{flex:1;min-width:0;margin:0!important;font-size:23px;line-height:1.25;overflow-wrap:anywhere}
