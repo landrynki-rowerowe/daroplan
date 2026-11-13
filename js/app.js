@@ -791,9 +791,23 @@ function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.i
 }else highlightFeature(f);const p=f.properties||{};if(group==='velo-objazdy'){const extra=document.createElement('div');if(p.description)extra.append(linkedDescription(String(p.description)));extra.append(textNode('p','Uwaga: wpis może być archiwalny. Zweryfikuj bieżącą sytuację.','source-credit'));showPanel(p.name||'Objazd / utrudnienie','VeloM — objazdy i utrudnienia',{},extra);return;}if(group==='crossings'){const extra=document.createElement('div');const names={zdmk:'Wykonane przez ZDMK',remont:'Trwa remont / budowa',propozycja:'Propozycja społeczna',priorytet:'Priorytet — do zrobienia',nzdr:'Wykonane przez NZDR'};if(p.description)extra.append(linkedDescription(String(p.description)));else extra.append(textNode('p','Brak dodatkowego opisu.'));extra.append(textNode('p','Źródło: mapa gładkich przejazdów / Google My Maps','source-credit'));showPanel(p.name||'Gładki przejazd',names[p.category]||'Gładkie przejazdy',{},extra);return;}if(group==='audyty'){const extra=document.createElement('div');if(p.publish_date)extra.append(textNode('p','Opublikowano: '+String(p.publish_date).slice(0,10)));if(p.modified_date)extra.append(textNode('p','Zmodyfikowano: '+String(p.modified_date).slice(0,10)));if(typeof p.link==='string'&&/^https:\/\//i.test(p.link))extra.append(link('Otwórz audyt ZTP ↗',p.link));showPanel(p.title||'Audyt rowerowy',p.categories||'Audyt ZTP',{},extra);return;}if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'){showDasieGeometry(f,label);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
 
 function renderTweet(id,container){
-  const embed=()=>{if(!window.twttr?.widgets?.createTweet)return false;
-    window.twttr.widgets.createTweet(id,container,{lang:'pl',dnt:true,align:'center'}).then(node=>{if(!node)container.append(textNode('p','Podgląd niedostępny — użyj linku do oryginalnego wpisu.'));}).catch(()=>container.append(textNode('p','Nie udało się osadzić wpisu. Link powyżej pozostaje dostępny.')));return true;};
-  if(embed())return;let tries=0;const interval=setInterval(()=>{if(!container.isConnected||embed()||++tries>40)clearInterval(interval);},200);
+  // Link źródłowy pokazujemy dopiero jeśli osadzenie X się nie powiedzie.
+  const fallback=()=>{
+   if(!container.isConnected||container.querySelector('a.action'))return;
+   container.append(textNode('p','Podgląd wpisu niedostępny.'),link('Otwórz oryginalny wpis w X ↗','https://x.com/i/status/'+encodeURIComponent(id)));
+  };
+  const embed=()=>{
+   if(!window.twttr?.widgets?.createTweet)return false;
+   window.twttr.widgets.createTweet(id,container,{lang:'pl',dnt:true,align:'center'})
+    .then(node=>{if(!node)fallback()}).catch(fallback);
+   return true;
+  };
+  if(embed())return;
+  let tries=0;
+  const interval=setInterval(()=>{
+   if(!container.isConnected||embed()){clearInterval(interval);return}
+   if(++tries>40){clearInterval(interval);fallback()}
+  },200);
 }
 function attachClicks(){map.on('click',e=>{if(window.DPNarratives?.active())return;if(window.DPRuch?.visible()&&map.getLayer('dp-ruch-points')){const fs=map.queryRenderedFeatures(e.point,{layers:['dp-ruch-points']});if(fs.length){window.DPRuch.clickFeature(fs[0]);return;}}const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none'&&!(mode==='ruch'&&layerIndex.get(id)?.startsWith('infra:')));const feats=ids.length?map.queryRenderedFeatures(e.point,{layers:ids}):[];if(feats.length){const openAudit=feats.find(f=>f.layer.id==='dp-audyty-otwarte-punkty');if(openAudit){selectedFeature({features:[openAudit]});return;}const cluster=feats.find(f=>f.layer.id==='dp-audyty-zamkniete-klastry');if(cluster){const source=map.getSource('dp-audytyZamkniete');source.getClusterExpansionZoom(cluster.properties.cluster_id,(err,zoom)=>{if(!err)map.easeTo({center:cluster.geometry.coordinates,zoom:Math.min(zoom,16),duration:450})});return;}selectedFeature({features:feats});return} if(activeFeature){clearSelection09();if(mode==='ruch')openRuchPanel();else{renderControls();openPanel('layers')}} });map.on('mousemove',e=>{const ids=[...layerIndex.keys()].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,'visibility')!=='none'&&!(mode==='ruch'&&layerIndex.get(id)?.startsWith('infra:')));map.getCanvas().style.cursor=ids.length&&map.queryRenderedFeatures(e.point,{layers:ids}).length?'pointer':''})}
 // 0.9.1: niezależne presety warstw dla modułów i kontrolowane nakładki.
