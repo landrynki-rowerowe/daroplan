@@ -1,4 +1,4 @@
-/* Wspólny panel STORY; przewijany jest kontener panel-section. */
+/* Wspólny panel STORY: na desktopie tylko #infoContent jest scroll-container. */
 .dp-narrative{width:100%;min-width:0;display:flex;flex-direction:column;gap:12px;color:inherit}
 .dp-narrative header{display:flex;align-items:center;gap:8px;min-width:0}
 .dp-narrative header h2{font-size:1.25rem;line-height:1.25;min-width:0;margin:0}
@@ -16,3 +16,23 @@
 .dasie-linked-material .tweet-embed{margin:4px 0 10px;min-height:90px}
 @media(min-width:701px){#infoPanel.info-panel{border-radius:20px 0 0 20px;overflow:auto}}
 @media(max-width:700px){.dp-narrative-scene-nav button{padding:8px}}
+
+/* Desktop: oddzielna przewijalna sekcja — nav sticky dotyka górnej krawędzi panelu.
+   Nie zostawiamy nad nawigacją przewijanego paska z treścią. */
+@media(min-width:701px){
+ #infoPanel.info-panel.dp-story-active{
+  display:flex;flex-direction:column;
+  padding:0;overflow:hidden;
+ }
+ #infoPanel.dp-story-active #infoContent.panel-section{
+  flex:1 1 auto;min-height:0;
+  padding:12px 24px 110px;
+  overflow-y:auto;overflow-x:hidden;
+  overscroll-behavior-y:contain;
+ }
+ #infoPanel.dp-story-active .dp-narrative-scene-nav{
+  top:0;z-index:10;
+  box-shadow:0 2px 4px #15232c14;
+ }
+}
+/* Mobile zachowuje istniejący panel dolny i przewijanie panel-section. */
