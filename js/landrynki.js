@@ -51,8 +51,9 @@ function render({silent=false}={}){
  if(selected){
   const route=packageData.routes.find(r=>r.id===selected);
   if(!route){selected=null;return render()}
-  const b=el('button','dp-landrynki-back','←');b.type='button';b.setAttribute('aria-label','Wróć do listy przejazdów');b.onclick=back;wrap.append(b);
-  const title=el('h3','dp-landrynki-route-name',route.name);wrap.append(title);
+  const heading=el('div','dp-landrynki-heading');
+  const b=el('button','dp-landrynki-back','←');b.type='button';b.setAttribute('aria-label','Wróć do listy przejazdów');b.onclick=back;
+  heading.append(b,el('h2','dp-landrynki-title',route.name));wrap.append(heading);
   if(route.youtubeId){
    const video=el('iframe','dp-landrynki-video');
    const desktop=window.matchMedia('(min-width:701px)').matches;
@@ -62,7 +63,9 @@ function render({silent=false}={}){
   }else wrap.append(el('p','','Brak filmu dla tego przejazdu.'));
   if(route.description)wrap.append(el('p','dp-landrynki-description',route.description));
  }else{
-  const exitButton=el('button','dp-landrynki-back','←');exitButton.type='button';exitButton.setAttribute('aria-label','Wróć do listy paczuszek Landrynek');exitButton.title='Wszystkie paczuszki';exitButton.onclick=goList;wrap.append(exitButton);
+  const heading=el('div','dp-landrynki-heading');
+  const exitButton=el('button','dp-landrynki-back','←');exitButton.type='button';exitButton.setAttribute('aria-label','Wróć do listy paczuszek Landrynek');exitButton.title='Wszystkie paczuszki';exitButton.onclick=goList;
+  heading.append(exitButton,el('h2','dp-landrynki-title',packageData.title));wrap.append(heading);
   // Opis HTML z CMS wyświetlamy jako tekst; nie wstawiamy niezweryfikowanego HTML.
   if(packageData.descriptionHtml){const text=new DOMParser().parseFromString(packageData.descriptionHtml,'text/html').body.textContent||'';wrap.append(el('p','dp-landrynki-description',text));}
   const grid=el('div','dp-landrynki-thumbs');
@@ -75,7 +78,7 @@ function render({silent=false}={}){
  }
  if(!silent){show(packageData.title,wrap)}else{
   const panel=document.getElementById('infoContent');
-  if(panel)panel.replaceChildren(el('div','tag','Landrynki Rowerowe'),el('h2','',packageData.title),wrap);
+  if(panel)panel.replaceChildren(wrap);
  }
 }
 function showCurrent(){
@@ -115,7 +118,9 @@ async function open(id){
 function renderList(){
  if(view!=='list'||!show)return;
  const box=el('div','dp-landrynki-list');
- const exit=el('button','dp-landrynki-back','←');exit.type='button';exit.title='Powrót do STORY';exit.setAttribute('aria-label','Zakończ Landrynki i wróć do STORY');exit.onclick=exitLandrynki;box.append(exit);
+ const heading=el('div','dp-landrynki-heading');
+ const exit=el('button','dp-landrynki-back','←');exit.type='button';exit.title='Powrót do STORY';exit.setAttribute('aria-label','Zakończ Landrynki i wróć do STORY');exit.onclick=exitLandrynki;
+ heading.append(exit,el('h2','dp-landrynki-title','Landrynki Rowerowe'));box.append(heading);
  if(!packageList.length)box.append(el('p','','Brak opublikowanych paczuszek.'));
  for(const item of packageList){
   const b=el('button','dp-landrynki-card');b.type='button';
