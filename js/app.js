@@ -918,8 +918,12 @@ function updateShareURL(){
 
 function clearSelection09(){if(activeFeature)clearFeatureHighlight();}
 function configureModes(next,{restoreCamera=true}={}){
- if(window.DPNarratives?.active())window.DPNarratives.exit();
  if(!moduleLayerIds[next])return;
+ // Ponowne wybranie STORY jedynie odsłania aktywną Opowieść, tak samo jak Landrynki.
+ if(next==='historia'&&next===mode&&window.DPNarratives?.active()){
+  window.DPNarratives.reveal();return;
+ }
+ if(window.DPNarratives?.active())window.DPNarratives.exit();
  if(next!=='ruch')window.DPRuch?.deactivate();if(next!=='historia'){
    window.DPLandrynki?.deactivate();landrynkiOverlayActive=false;
   }
@@ -1001,10 +1005,10 @@ async function search(query){if(!query.trim())return;ui.results.classList.remove
 function hideLocation(){geoRequest++;if(locationMarker){locationMarker.remove();locationMarker=null;}$('locate').classList.remove('is-active');$('locate').setAttribute('aria-pressed','false');$('locate').title='Pokaż moją lokalizację'}
 function init(){base=baseFromURL();restoringShareState=true;restoreSharedView();if(!window.mapboxgl){$('status').textContent='Nie załadowano Mapbox GL JS';toast('Nie udało się załadować Mapbox GL JS');return}mapboxgl.accessToken=cfg.token;map=new mapboxgl.Map({container:'map',style:cfg.basemaps[baseFromURL()],center:cfg.home,zoom:cfg.zoom,maxZoom:16,hash:true,attributionControl:true});map.addControl(new mapboxgl.NavigationControl({showCompass:true}),'bottom-right');map.addControl(new mapboxgl.ScaleControl({unit:'metric',maxWidth:90}),'bottom-left');window.DPRuch?.init(map,{open:()=>{if(mode==='ruch')openRuchPanel()}});window.DPLandrynki?.init(map,(title,node)=>{ui.content.replaceChildren(node);openPanel('content')},exitLandrynkiToStory);window.DPNarratives?.init(map,{
  enter:()=>{window.DPLandrynki?.deactivate();landrynkiOverlayActive=false;clearFeatureHighlight();syncVisibility();},
- show:node=>{ui.content.replaceChildren(node);openPanel('content');},
+ show:node=>{ui.panel.classList.add('dp-story-active');ui.content.replaceChildren(node);openPanel('content');},
  materials:storyDasieMaterials,
  reveal:()=>{if(ui.content.firstElementChild?.classList.contains('dp-narrative'))openPanel('content')},
- leave:restorePanel=>{syncVisibility();renderControls();if(restorePanel!==false)openPanel('layers');}
+ leave:restorePanel=>{ui.panel.classList.remove('dp-story-active');syncVisibility();renderControls();if(restorePanel!==false)openPanel('layers');}
 });loadDasieCms();map.on('style.load',()=>{styleRevision++;restoreThematicLayers();window.DPLandrynki?.refreshOpacity?.()});
 // Awaryjna kontrola: jeśli źródła zostały usunięte w czasie szybkich zmian stylu,
 // przywróć je po zakończeniu ładowania, bez wywoływania dodatkowych żądań CMS.
