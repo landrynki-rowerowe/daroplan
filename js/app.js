@@ -713,7 +713,10 @@ function dasieGeometryKey(feature){
 }
 function dasieRelatedEntries(feature){
  if(!dasieCmsData?.features?.length)return [feature];
- const key=dasieGeometryKey(feature);
+ // Renderowana cecha Mapbox (zwłaszcza LineString) może być przycięta do kafla.
+ // Do porównania geometrii używamy pełnego obiektu z CMS, zidentyfikowanego po Feature.id.
+ const canonical=dasieCmsData.features.find(item=>String(item.id)===String(feature.id))||feature;
+ const key=dasieGeometryKey(canonical);
  const matches=dasieCmsData.features.filter(item=>dasieGeometryKey(item)===key);
  return matches.length?matches:[feature];
 }
