@@ -1,0 +1,493 @@
+{
+  "dataset_id": "krakow_manual_bicycle_counts_2018",
+  "title": "Kraków – ręczne pomiary ruchu rowerowego 2018 (wyniki zbiorcze)",
+  "year": 2018,
+  "status": "partial_verified_from_official_summary",
+  "source": {
+    "publisher": "Gmina Miejska Kraków / BIP Miasta Krakowa",
+    "contractor": "PBS Sp. z o.o.",
+    "document": "Synteza opracowania – Badanie natężenia ruchu rowerowego w Krakowie – 2018, tabela 1, strony 6–7",
+    "document_url": "https://www.bip.krakow.pl/plik.php?mode=shw&new=t&wer=0&zid=220208",
+    "source_xlsx_url": "https://www.bip.krakow.pl/plik.php?mode=shw&new=t&wer=0&zid=220210",
+    "bip_page": "https://www.bip.krakow.pl/?dok_id=71504"
+  },
+  "measurement": {
+    "type": "manual_count",
+    "period_description": "8 godzin w dzień powszedni, szczyt poranny 07:30–11:30 i popołudniowy 15:45–19:45",
+    "morning_period": "07:30–11:30",
+    "afternoon_period": "15:45–19:45",
+    "unit": "rowerzyści / 8 godzin szczytowych",
+    "not_daily_average": true,
+    "notes": "Wyniki z tabeli zbiorczej; część punktów objęto również dłuższym pomiarem i/lub pomiarem weekendowym, ale podane tu wartości odnoszą się do wybranych 8 godzin szczytowych."
+  },
+  "georeferencing": {
+    "status": "not_georeferenced",
+    "note": "Nie przypisano współrzędnych: nazwy w zestawieniu nie określają jednoznacznie dokładnego przekroju. Wymagana weryfikacja na mapie wynikowej lub kartach pomiarów."
+  },
+  "points": [
+    {
+      "point_id": "krk-manual-2018-01",
+      "original_point_number": 1,
+      "name": "MOST DĘBNICKI",
+      "bicyclists_8h_weekday_peak": 1895,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-02",
+      "original_point_number": 2,
+      "name": "BULWAR KURLANDZKI",
+      "bicyclists_8h_weekday_peak": 1692,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-03",
+      "original_point_number": 3,
+      "name": "KŁADKA BERNATKA",
+      "bicyclists_8h_weekday_peak": 1384,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-04",
+      "original_point_number": 4,
+      "name": "BULWAR POLESKI",
+      "bicyclists_8h_weekday_peak": 555,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-05",
+      "original_point_number": 5,
+      "name": "RONDO MOGILSKIE",
+      "bicyclists_8h_weekday_peak": 3389,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-06",
+      "original_point_number": 6,
+      "name": "KINO KIJÓW",
+      "bicyclists_8h_weekday_peak": 834,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-07",
+      "original_point_number": 7,
+      "name": "AGH",
+      "bicyclists_8h_weekday_peak": 868,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-08",
+      "original_point_number": 8,
+      "name": "PARK KRAKOWSKI",
+      "bicyclists_8h_weekday_peak": 952,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-09",
+      "original_point_number": 9,
+      "name": "BASZTOWA",
+      "bicyclists_8h_weekday_peak": 622,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-10",
+      "original_point_number": 10,
+      "name": "DŁUGA",
+      "bicyclists_8h_weekday_peak": 961,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-11",
+      "original_point_number": 11,
+      "name": "WAWEL",
+      "bicyclists_8h_weekday_peak": 3827,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-12",
+      "original_point_number": 12,
+      "name": "STAROWIŚLNA",
+      "bicyclists_8h_weekday_peak": 1148,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-13",
+      "original_point_number": 13,
+      "name": "ALEJA POWSTANIA WARSZAWSKIEGO",
+      "bicyclists_8h_weekday_peak": 2742,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-14",
+      "original_point_number": 14,
+      "name": "ALEJA POKOJU",
+      "bicyclists_8h_weekday_peak": 2536,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-15",
+      "original_point_number": 15,
+      "name": "MOGILSKA",
+      "bicyclists_8h_weekday_peak": 2145,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-16",
+      "original_point_number": 16,
+      "name": "BIEŃCZYCKA",
+      "bicyclists_8h_weekday_peak": 1055,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-17",
+      "original_point_number": 17,
+      "name": "KLIMECKIEGO",
+      "bicyclists_8h_weekday_peak": 646,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-18",
+      "original_point_number": 18,
+      "name": "MOST ZWIERZYNIECKI",
+      "bicyclists_8h_weekday_peak": 502,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-19",
+      "original_point_number": 19,
+      "name": "MOST GRUNWALDZKI",
+      "bicyclists_8h_weekday_peak": 3944,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-20",
+      "original_point_number": 20,
+      "name": "KOPERNIKA",
+      "bicyclists_8h_weekday_peak": 854,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-21",
+      "original_point_number": 21,
+      "name": "GRZEGÓRZECKA",
+      "bicyclists_8h_weekday_peak": 347,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-22",
+      "original_point_number": 22,
+      "name": "GROTA-ROWECKIEGO",
+      "bicyclists_8h_weekday_peak": 1881,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-23",
+      "original_point_number": 23,
+      "name": "RUDAWA",
+      "bicyclists_8h_weekday_peak": 998,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-24",
+      "original_point_number": 24,
+      "name": "KAPELANKA",
+      "bicyclists_8h_weekday_peak": 1119,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-25",
+      "original_point_number": 25,
+      "name": "MOST PIŁSUDSKIEGO",
+      "bicyclists_8h_weekday_peak": 744,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-26",
+      "original_point_number": 26,
+      "name": "MOST WANDY",
+      "bicyclists_8h_weekday_peak": 435,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-27",
+      "original_point_number": 27,
+      "name": "MOST NOWOHUCKI",
+      "bicyclists_8h_weekday_peak": 622,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-28",
+      "original_point_number": 28,
+      "name": "BORA-KOMOROWSKIEGO",
+      "bicyclists_8h_weekday_peak": 1000,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-29",
+      "original_point_number": 29,
+      "name": "STOPIEŃ WODNY \"KOŚCIUSZKO\"",
+      "bicyclists_8h_weekday_peak": 751,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-30",
+      "original_point_number": 30,
+      "name": "STRZELCÓW",
+      "bicyclists_8h_weekday_peak": 327,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-31",
+      "original_point_number": 31,
+      "name": "STOPIEŃ WODNY \"DĄBIE\"",
+      "bicyclists_8h_weekday_peak": 794,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-32",
+      "original_point_number": 32,
+      "name": "MOST KOTLARSKI",
+      "bicyclists_8h_weekday_peak": 542,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-33",
+      "original_point_number": 33,
+      "name": "MOST POWSTAŃCÓW ŚLĄSKICH",
+      "bicyclists_8h_weekday_peak": 1017,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-34",
+      "original_point_number": 34,
+      "name": "WIELICKA \"KABEL\"",
+      "bicyclists_8h_weekday_peak": 1729,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-35",
+      "original_point_number": 35,
+      "name": "OPOLSKA",
+      "bicyclists_8h_weekday_peak": 1301,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-36",
+      "original_point_number": 36,
+      "name": "ALEJA 29 LISTOPADA",
+      "bicyclists_8h_weekday_peak": 1829,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-37",
+      "original_point_number": 37,
+      "name": "STELLA-SAWICKIEGO",
+      "bicyclists_8h_weekday_peak": 385,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-38",
+      "original_point_number": 38,
+      "name": "ARMII KRAJOWEJ",
+      "bicyclists_8h_weekday_peak": 947,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-39",
+      "original_point_number": 39,
+      "name": "WYBICKIEGO",
+      "bicyclists_8h_weekday_peak": 837,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-40",
+      "original_point_number": 40,
+      "name": "WADOWICKA",
+      "bicyclists_8h_weekday_peak": 392,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-41",
+      "original_point_number": 41,
+      "name": "AL. JANA PAWŁA II",
+      "bicyclists_8h_weekday_peak": 1463,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-42",
+      "original_point_number": 42,
+      "name": "ALEJA ANDERSA",
+      "bicyclists_8h_weekday_peak": 767,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-43",
+      "original_point_number": 43,
+      "name": "KAMIEŃSKIEGO",
+      "bicyclists_8h_weekday_peak": 307,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-44",
+      "original_point_number": 44,
+      "name": "PYCHOWICE (WAŁY)",
+      "bicyclists_8h_weekday_peak": 855,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-45",
+      "original_point_number": 45,
+      "name": "ALEJA 3 MAJA",
+      "bicyclists_8h_weekday_peak": 1053,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-46",
+      "original_point_number": 46,
+      "name": "CZARNOWIEJSKA",
+      "bicyclists_8h_weekday_peak": 524,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-47",
+      "original_point_number": 47,
+      "name": "PIASTOWSKA",
+      "bicyclists_8h_weekday_peak": 1194,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-48",
+      "original_point_number": 48,
+      "name": "KSIĘCIA JÓZEFA",
+      "bicyclists_8h_weekday_peak": 1543,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-49",
+      "original_point_number": 49,
+      "name": "KONOPNICKIEJ",
+      "bicyclists_8h_weekday_peak": 1173,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-50",
+      "original_point_number": 50,
+      "name": "TELIGI",
+      "bicyclists_8h_weekday_peak": 715,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-51",
+      "original_point_number": 51,
+      "name": "WIŚLICKA",
+      "bicyclists_8h_weekday_peak": 516,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-52",
+      "original_point_number": 52,
+      "name": "PIASTA KOŁODZIEJA",
+      "bicyclists_8h_weekday_peak": 402,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-53",
+      "original_point_number": 53,
+      "name": "KOCMYRZOWSKA",
+      "bicyclists_8h_weekday_peak": 704,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-54",
+      "original_point_number": 54,
+      "name": "SALWATOR",
+      "bicyclists_8h_weekday_peak": 934,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-55",
+      "original_point_number": 55,
+      "name": "ZAKOPIAŃSKA",
+      "bicyclists_8h_weekday_peak": 466,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-56",
+      "original_point_number": 56,
+      "name": "CONRADA",
+      "bicyclists_8h_weekday_peak": 645,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-57",
+      "original_point_number": 57,
+      "name": "NIEPOŁOMSKA (WAŁY)",
+      "bicyclists_8h_weekday_peak": 772,
+      "geometry": null,
+      "location_verified": false
+    },
+    {
+      "point_id": "krk-manual-2018-58",
+      "original_point_number": 58,
+      "name": "ZAWIŁA",
+      "bicyclists_8h_weekday_peak": 798,
+      "geometry": null,
+      "location_verified": false
+    }
+  ]
+}
