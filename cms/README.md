@@ -24,3 +24,19 @@ Jeśli aktualizacja wywoła błąd, przywróć pojedynczy plik z odpowiedniego `
 - Nie usuwa niepowiązanych plików ani nie synchronizuje całych katalogów.
 - Waliduje składnię PHP lokalnie i na serwerze (jeśli PHP CLI jest dostępne), ale **nie stanowi pełnego testu integracyjnego**.
 - SSH korzysta obecnie z hasła zgodnie z istniejącym workflow; docelowo warto przejść na osobny klucz wdrożeniowy z ograniczonymi uprawnieniami i sekrety środowiska GitHub `cms-deploy`.
+
+## Stan MU-pluginów pobrany z serwera (15.11.2026)
+
+Poniższe pliki zostały skopiowane 1:1 z katalogu `wp-content/mu-plugins` CMS `lab.otwartyplan.org` i dodane do repozytorium bez żadnych zmian w kodzie. Celem jest wersjonowanie i możliwość audytu. Dodanie ich tutaj **niczego nie wdraża**: workflow publikuje wyłącznie plik wskazany ręcznie przy uruchomieniu.
+
+| Plik | Moduł | Wersja wewnętrzna |
+|---|---|---|
+| `daroplan-cms.php` | CMS Core: typy treści `drp_story`, `drp_scene`, `drp_dasie`, endpoint `/stories` | 0.2.0 |
+| `daroplan-geometries-0.3.5.php` | Geometrie i relacje (własne tabele), ustawienia mapy | 0.3.5 |
+| `daroplan-dasie-api-0.1.php` | Endpoint `/dasie` (GeoJSON) | 0.1.0 |
+| `daroplan-dasie-editor-0.3.2.php` | Edytor mapowy DASIE | 0.3.3 |
+| `daroplan-dasie-preview-0.4.php` | Podgląd materiału DASIE | 0.4.0 |
+| `daroplan-landrynki-0.5.php` | Landrynki Rowerowe, endpoint `/landrynki` | 0.5.0 |
+| `daroplan-landrynki-0.5.1.php` | Landrynki: zajawki i lista | 0.5.1 |
+
+Uwaga: plik `daroplan-dasie-editor-0.3.2.php` ma w nagłówku wersję 0.3.3. Nazwy plików pozostają bez zmian, zgodnie z zasadą „jeden plik na moduł, rośnie wersja wewnętrzna".
