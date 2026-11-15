@@ -5,8 +5,8 @@ const $=id=>document.getElementById(id);
 const ui={menu:$('layersMenu'),panel:$('infoPanel'),content:$('infoContent'),results:$('searchResults'),input:$('searchInput')};
 // Kanoniczny adres bez index.html — zachowujemy hash Mapboxa i pozostałe parametry.
 if (/\/index\.html$/i.test(location.pathname)) history.replaceState(null,'',location.pathname.replace(/index\.html$/i,'')+location.search+location.hash);
-let map,styleLayers=[],mode='infra',base='original',loadingSequence=0,locationMarker=null,activeFeature=null,selectedOutlineIds=[],sourceLayers={};
-let sourcesReady=false, styleRevision=0;
+let map,styleLayers=[],mode='infra',base='original',locationMarker=null,activeFeature=null,selectedOutlineIds=[],sourceLayers={};
+let sourcesReady=false;
 // Nakładka Landrynek w STORY: ukrywa DASIE bez zmiany ustawień warstw i zapisanych URL-i.
 let landrynkiOverlayActive=false;
 // DASIE pochodzi z CMS. Wybrany tweet zostaje zachowany przy zmianie podkładu.
@@ -533,12 +533,6 @@ function applySatelliteContrast(){
    if(map.getLayer(haloId))map.setLayoutProperty(haloId,'visibility',base==='satellite'&&map.getLayoutProperty(id,'visibility')==='visible'?'visible':'none');
  }
 
- const isSat=base==='satellite';
- for(const [id,group] of layerIndex){if(!map.getLayer(id))continue;
- const l=map.getLayer(id);if(l.type==='line'&&!id.includes('borders')&&!id.includes('border-red')&&!id.startsWith('dp-selected')){
-  // Obrysy obsługiwane przez warstwy -halo dodane powyżej.
- }
- }
 }
 // W RUCH istniejąca infrastruktura to dyskretne tło (50%), niezależne od presetów INFRA.
 // Nie dopisujemy jej do selection: URL, zapamiętane warstwy i konfiguracje modułów
@@ -594,7 +588,7 @@ function updateBaseControl(){
    img.alt='Podkład '+name+' — centrum Krakowa';
  });
 }
-function setBase(b){const internal=baseNames[b]||b;if(!cfg.basemaps[internal]||internal===base)return;if(!selectedDasieTweetId&&!window.DPNarratives?.active())clearFeatureHighlight();base=internal;loadingSequence++;map.setStyle(cfg.basemaps[internal],{diff:true});const url=new URL(location.href);url.searchParams.set('b',basePublic[base]);updateShareURL();updateBaseControl();}
+function setBase(b){const internal=baseNames[b]||b;if(!cfg.basemaps[internal]||internal===base)return;if(!selectedDasieTweetId&&!window.DPNarratives?.active())clearFeatureHighlight();base=internal;map.setStyle(cfg.basemaps[internal],{diff:true});updateShareURL();updateBaseControl();}
 function setupBaseControl(){
  const root=$('baseControl'),trigger=$('baseTrigger'),options=$('baseOptions');
  const close=()=>{root.classList.remove('open');trigger.setAttribute('aria-expanded','false')};
@@ -806,7 +800,21 @@ function selectedFeature(e){const f=e.features?.find(x=>layerIndex.has(x.layer.i
  if(!highlightDasieGroup(f))highlightFeature(f);
 }else highlightFeature(f);const p=f.properties||{};if(group==='velo-objazdy'){const extra=document.createElement('div');if(p.description)extra.append(linkedDescription(String(p.description)));extra.append(textNode('p','Uwaga: wpis może być archiwalny. Zweryfikuj bieżącą sytuację.','source-credit'));showPanel(p.name||'Objazd / utrudnienie','VeloM — objazdy i utrudnienia',{},extra);return;}if(group==='crossings'){const extra=document.createElement('div');const names={zdmk:'Wykonane przez ZDMK',remont:'Trwa remont / budowa',propozycja:'Propozycja społeczna',priorytet:'Priorytet — do zrobienia',nzdr:'Wykonane przez NZDR'};if(p.description)extra.append(linkedDescription(String(p.description)));else extra.append(textNode('p','Brak dodatkowego opisu.'));extra.append(textNode('p','Źródło: mapa gładkich przejazdów / Google My Maps','source-credit'));showPanel(p.name||'Gładki przejazd',names[p.category]||'Gładkie przejazdy',{},extra);return;}if(group==='audyty'){const extra=document.createElement('div');if(p.publish_date)extra.append(textNode('p','Opublikowano: '+String(p.publish_date).slice(0,10)));if(p.modified_date)extra.append(textNode('p','Zmodyfikowano: '+String(p.modified_date).slice(0,10)));if(typeof p.link==='string'&&/^https:\/\//i.test(p.link))extra.append(link('Otwórz audyt ZTP ↗',p.link));showPanel(p.title||'Audyt rowerowy',p.categories||'Audyt ZTP',{},extra);return;}if(group.startsWith('velo-')){showVeloFeature(p,group);return;}const label=p.name||p.nazwa||p.title||p.NAZWA||layerGroups.find(x=>x.id===group)?.title||'Obiekt na mapie';const extra=document.createElement('div');if(group==='counters')extra.append(link('Pełne analizy pomiarów →',cfg.analysisUrl));if(group==='infra'||group==='construction')extra.append(link('Statystyki infrastruktury →',cfg.infrastructureUrl));if(group==='dasie'){showDasieGeometry(f,label);return;}showPanel(label,layerGroups.find(x=>x.id===group)?.title||'Mapa',p,extra);}
 
+// Skrypt osadzeń X ładujemy dopiero przy pierwszym wpisie, a nie każdemu odwiedzającemu przy starcie.
+let twitterWidgetsRequested=false;
+function loadTwitterWidgets(){
+  if(twitterWidgetsRequested||window.twttr?.widgets?.createTweet)return;
+  twitterWidgetsRequested=true;
+  const script=document.createElement('script');
+  script.src='https://platform.twitter.com/widgets.js';
+  script.async=true;
+  script.charset='utf-8';
+  // Po błędzie sieci pozwalamy spróbować ponownie przy kolejnym wpisie.
+  script.onerror=()=>{twitterWidgetsRequested=false;script.remove();};
+  document.head.appendChild(script);
+}
 function renderTweet(id,container){
+  loadTwitterWidgets();
   // Link źródłowy pokazujemy dopiero jeśli osadzenie X się nie powiedzie.
   const fallback=()=>{
    if(!container.isConnected||container.querySelector('a.action'))return;
@@ -1025,11 +1033,11 @@ function init(){base=baseFromURL();restoringShareState=true;restoreSharedView();
  materials:storyDasieMaterials,
  reveal:()=>{if(ui.content.firstElementChild?.classList.contains('dp-narrative')){openPanel('content');restoreStoryScroll()}},
  leave:restorePanel=>{hiddenStoryScroll=null;ui.panel.classList.remove('dp-story-active');syncVisibility();renderControls();if(restorePanel!==false)openPanel('layers');}
-});loadDasieCms();map.on('style.load',()=>{styleRevision++;restoreThematicLayers();window.DPLandrynki?.refreshOpacity?.()});
+});loadDasieCms();map.on('style.load',()=>{restoreThematicLayers();window.DPLandrynki?.refreshOpacity?.()});
 // Awaryjna kontrola: jeśli źródła zostały usunięte w czasie szybkich zmian stylu,
 // przywróć je po zakończeniu ładowania, bez wywoływania dodatkowych żądań CMS.
 map.on('idle',()=>{
- if(!sourcesReady||!map.getStyle()||!map.isStyleLoaded())return;
+ if(!sourcesReady||!map.isStyleLoaded())return;
  if(!map.getLayer('dp-infra-ddr')||!map.getLayer('dp-borders')||(dasieCmsData&&!map.getSource('dp-dasieCms'))){
   restoreThematicLayers();
   window.DPLandrynki?.refreshOpacity?.();

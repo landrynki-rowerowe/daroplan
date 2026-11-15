@@ -29,18 +29,39 @@ function normalize(payload){
   if(ids.has(feature.id))throw new Error('DASIE CMS: powtórzony identyfikator relacji '+feature.id);
   ids.add(feature.id);
  }
- // Do not silently show an incomplete archive if pagination grows beyond page 1.
- const page=payload.pagination;
- if(isObject(page)&&(Number(page.total_pages||page.pages||1)>1||page.has_more===true||page.next_page!=null))
-  throw new Error('DASIE CMS: API zwróciło więcej niż jedną stronę; wymagane stronicowanie');
  return {type:'FeatureCollection',features};
 }
+// API stronicuje po wpisach DASIE (najwyżej 500 na stronę). Pobieramy WSZYSTKIE strony,
+// aby archiwum nigdy nie było pokazane częściowo ani odrzucone po przekroczeniu jednej strony.
+const PER_PAGE=500;
+const MAX_PAGES=40;
+function totalPages(payload){
+ const page=isObject(payload)?payload.pagination:null;
+ if(!isObject(page))return 1;
+ const n=Number(page.total_pages||page.pages||1);
+ return Number.isFinite(n)&&n>=1?Math.floor(n):1;
+}
+async function fetchPage(page,signal){
+ const response=await fetch(ENDPOINT+'?per_page='+PER_PAGE+'&page='+page,{mode:'cors',credentials:'omit',headers:{Accept:'application/json'},signal,cache:'no-store'});
+ if(!response.ok)throw new Error('DASIE CMS: HTTP '+response.status+' (strona '+page+')');
+ return response.json();
+}
 async function load({signal}={}){
- const response=await fetch(ENDPOINT,{mode:'cors',credentials:'omit',headers:{Accept:'application/json'},signal,cache:'no-store'});
- if(!response.ok)throw new Error('DASIE CMS: HTTP '+response.status);
- const fc=normalize(await response.json());
- if(!fc.features.length)throw new Error('DASIE CMS: brak opublikowanych geometrii');
- return fc;
+ const first=await fetchPage(1,signal);
+ const pages=totalPages(first);
+ if(pages>MAX_PAGES)throw new Error('DASIE CMS: nieoczekiwana liczba stron: '+pages);
+ const features=normalize(first).features.slice();
+ for(let page=2;page<=pages;page++){
+  for(const feature of normalize(await fetchPage(page,signal)).features)features.push(feature);
+ }
+ // Identyfikator relacji musi być unikalny także pomiędzy stronami.
+ const ids=new Set();
+ for(const feature of features){
+  if(ids.has(feature.id))throw new Error('DASIE CMS: powtórzony identyfikator relacji '+feature.id);
+  ids.add(feature.id);
+ }
+ if(!features.length)throw new Error('DASIE CMS: brak opublikowanych geometrii');
+ return {type:'FeatureCollection',features};
 }
 window.DPDasieCMS=Object.freeze({load,normalize,endpoint:ENDPOINT});
 })();

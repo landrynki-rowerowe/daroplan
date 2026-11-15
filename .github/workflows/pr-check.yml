@@ -1,0 +1,71 @@
+name: Kontrola PR - składnia i spójność plików
+
+# Uruchamia się przy każdym PR do dev. Niczego nie wdraża i nie używa sekretów.
+on:
+  pull_request:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+jobs:
+  kontrola:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Pobierz kod
+        uses: actions/checkout@v4
+
+      - name: Składnia JavaScript
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for f in js/*.js; do
+            node --check "$f"
+            echo "OK  $f"
+          done
+
+      - name: Składnia PHP
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for f in api/*.php cms/mu-plugins/*.php; do
+            php -l "$f"
+          done
+
+      - name: Poprawność JSON i GeoJSON
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, json, sys
+          bad = 0
+          for path in sorted(glob.glob('data/*.json') + glob.glob('data/*.geojson')):
+              try:
+                  with open(path, encoding='utf-8-sig') as fh:
+                      json.load(fh)
+                  print('OK ', path)
+              except Exception as exc:
+                  bad += 1
+                  print('BŁĄD', path, exc)
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: index.html wskazuje istniejące pliki
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, sys
+          html = open('index.html', encoding='utf-8').read()
+          refs = re.findall(r'(?:src|href)="([^"]+)"', html)
+          missing = []
+          for ref in refs:
+              if re.match(r'^(https?:)?//', ref) or ref.startswith(('#', 'data:', 'mailto:')):
+                  continue
+              path = ref.split('?')[0].split('#')[0]
+              if path and not os.path.isfile(path):
+                  missing.append(ref)
+          for ref in missing:
+              print('BRAK PLIKU:', ref)
+          print('Sprawdzono odwołań lokalnych:', sum(1 for r in refs if not re.match(r'^(https?:)?//', r)))
+          sys.exit(1 if missing else 0)
+          PY
