@@ -947,6 +947,9 @@ function configureModes(next,{restoreCamera=true}={}){
  if(next==='historia'&&next===mode&&window.DPNarratives?.active()){
   window.DPNarratives.reveal();return;
  }
+ // Ponowne wybranie STORY przy schowanym panelu odsłania bieżący widok Landrynek (DEC-070).
+ // Na telefonie arkusz chowa się bez klasy hidden, dlatego warunek niżej działał tylko tam.
+ if(next==='historia'&&next===mode&&landrynkiOverlayActive&&window.DPLandrynki?.showCurrent?.())return;
  if(window.DPNarratives?.active())window.DPNarratives.exit();
  if(next!=='ruch')window.DPRuch?.deactivate();if(next!=='historia'){
    window.DPLandrynki?.deactivate();landrynkiOverlayActive=false;
