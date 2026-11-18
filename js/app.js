@@ -424,7 +424,7 @@ function highlightFeature(feature){
  gather(geometry.coordinates);
  if(pts.length){const bounds=pts.reduce((b,p)=>b.extend(p),new mapboxgl.LngLatBounds(pts[0],pts[0]));
    if(pts.length===1)map.easeTo({center:pts[0],zoom:Math.max(map.getZoom(),14),duration:550,padding:{...panelPadding(),left:25,top:75,bottom:100}});
-   else map.fitBounds(bounds,{maxZoom:15.4,padding:{...panelPadding(),left:50,right:Math.max(panelCameraWidth+40,45),top:95,bottom:window.innerWidth<=650?200:95},duration:600});
+   else map.fitBounds(bounds,{maxZoom:15.4,padding:{...panelPadding(),left:50,right:Math.max(panelCameraWidth+40,45),top:95,bottom:window.innerWidth<=700?200:95},duration:600});
  }
 }
 // Identyfikator logiczny SIM jest niezależny od granic kafelków.
@@ -465,7 +465,7 @@ function highlightWholeFeatures(features,selected){
  const pts=[];const gather=c=>{if(typeof c?.[0]==='number'&&Number.isFinite(c[0])&&Number.isFinite(c[1]))pts.push(c);else if(Array.isArray(c))c.forEach(gather)};
  features.forEach(f=>gather(f.geometry?.coordinates));
  if(pts.length){const bounds=pts.reduce((b,p)=>b.extend(p),new mapboxgl.LngLatBounds(pts[0],pts[0]));
-  map.fitBounds(bounds,{maxZoom:15.4,padding:{left:50,right:Math.max(panelCameraWidth+40,50),top:90,bottom:window.innerWidth<=650?190:90},duration:600});}
+  map.fitBounds(bounds,{maxZoom:15.4,padding:{left:50,right:Math.max(panelCameraWidth+40,50),top:90,bottom:window.innerWidth<=700?190:90},duration:600});}
  return true;
 }
 async function highlightWholeVelo(feature){

@@ -5,4 +5,4 @@
 .dp-base-trigger:focus-visible,.dp-base-options button:focus-visible{outline:3px solid #1765a5;outline-offset:2px}
 .dp-base-options{display:none;align-items:center;gap:7px;padding-left:7px;background:transparent}
 .dp-base-control.open .dp-base-options{display:flex}
-@media(max-width:650px){.dp-base-control{top:75px;left:10px}.dp-base-trigger,.dp-base-options button{width:46px;height:46px;flex-basis:46px}.dp-base-options{gap:5px;padding-left:5px}}
+@media(max-width:700px){.dp-base-control{top:75px;left:10px}.dp-base-trigger,.dp-base-options button{width:46px;height:46px;flex-basis:46px}.dp-base-options{gap:5px;padding-left:5px}}
