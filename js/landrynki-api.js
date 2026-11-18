@@ -49,5 +49,10 @@
   }).filter(Boolean);
   return {id:key,title:asText(data.title),descriptionHtml:asText(data.description_html),excerpt:asText(data.excerpt),featuredImageUrl:imageURL(data.featured_image_url),routes};
  }
- window.DPLandrynkiAPI=Object.freeze({list,detail,normalizeSummary});
+ // Odmiana: 1 przejazd, 2–4 przejazdy (bez 12–14), pozostałe przejazdów.
+ function routeLabel(n){
+  const k=Math.max(0,Math.trunc(Number(n)||0)),d=k%10,dd=k%100;
+  return k+' '+(k===1?'przejazd':(d>=2&&d<=4&&(dd<12||dd>14)?'przejazdy':'przejazdów'));
+ }
+ window.DPLandrynkiAPI=Object.freeze({list,detail,normalizeSummary,routeLabel});
 })();

@@ -13,7 +13,10 @@ function screen(title){
  const back=button('←',()=>exit());back.className='dp-story-back';back.setAttribute('aria-label','Wróć do modułu STORY');back.title='Wróć do modułu STORY';
  h.append(back,el('h2',title));root.append(h);
 }
-function fail(e){screen('Opowieści');root.append(el('p','Nie udało się wczytać: '+String(e.message||e)),button('Spróbuj ponownie',list))}
+// Komunikat dla odwiedzającego; szczegóły techniczne tylko w konsoli. retry ponawia to, co się nie udało.
+function fail(e,retry,text,label){console.warn('[STORY]',e);screen('Opowieści');root.append(el('p',text||'Nie udało się wczytać Opowieści. Sprawdź połączenie z internetem i spróbuj ponownie.'),button(label||'Spróbuj ponownie',retry))}
+// Tytuł z WordPressa: tekst albo {rendered}; encje HTML zamieniane na znaki.
+function plain(v){const t=typeof v==='string'?v:(typeof v?.rendered==='string'?v.rendered:'');return t?(new DOMParser().parseFromString(t,'text/html').body.textContent||'').trim():''}
 function safeContent(html){const out=el('div',null,'dp-narrative-copy');const doc=new DOMParser().parseFromString(String(html||''),'text/html');const allowed=new Set(['P','H2','H3','H4','UL','OL','LI','STRONG','B','EM','I','BLOCKQUOTE','BR','A','IMG','FIGURE','FIGCAPTION']);function copy(n,parent){if(n.nodeType===3){parent.append(document.createTextNode(n.textContent));return}if(n.nodeType!==1||['SCRIPT','STYLE','IFRAME','OBJECT','EMBED'].includes(n.tagName))return;if(!allowed.has(n.tagName)){for(const c of n.childNodes)copy(c,parent);return}const x=el(n.tagName.toLowerCase());if(n.tagName==='A'||n.tagName==='IMG'){const attr=n.tagName==='A'?'href':'src';try{const u=new URL(n.getAttribute(attr)||'',endpoint);if(['http:','https:'].includes(u.protocol))x.setAttribute(attr,u.href)}catch{}if(n.tagName==='A'){x.target='_blank';x.rel='noopener noreferrer'}else{x.alt=n.getAttribute('alt')||'';x.loading='lazy'}}for(const c of n.childNodes)copy(c,x);parent.append(x)}for(const n of doc.body.childNodes)copy(n,out);return out}
 function removeHighlight(){for(const id of ['dp-narrative-line','dp-narrative-point'])if(map?.getLayer(id))map.removeLayer(id)}
 function highlight(){
@@ -47,7 +50,7 @@ function scene(i){
  index=i;
  const s=scenes[i],layout=['split','map-full','content-full'].includes(s.layout)?s.layout:'split';
  root.dataset.layout=layout;
- screen(story.title||'Opowieść');
+ screen(plain(story.title)||'Opowieść');
  const nav=el('nav',null,'dp-narrative-scene-nav');nav.setAttribute('aria-label','Nawigacja scenami');
  const prev=button('‹ Wstecz',()=>scene(index-1));prev.disabled=index===0;
  const count=el('span',(index+1)+' / '+scenes.length,'dp-narrative-scene-count');count.setAttribute('aria-live','polite');
@@ -63,8 +66,8 @@ function scene(i){
   map.stop();map.easeTo({center:camera.center,zoom:camera.zoom,bearing:Number.isFinite(camera.bearing)?camera.bearing:0,pitch:Number.isFinite(camera.pitch)?camera.pitch:0,padding:padding(layout),duration:650});
  }
 }
-async function open(id){const seq=++request;screen('Wczytywanie opowieści…');try{const data=await json(endpoint+'/'+encodeURIComponent(id));if(!active||seq!==request)return;if(!Array.isArray(data.scenes)||!data.scenes.length)throw Error('Brak scen');story=data;scenes=[...data.scenes].sort((a,b)=>Number(a.order||0)-Number(b.order||0));scene(0)}catch(e){if(active&&seq===request)fail(e)}}
-async function list(){const seq=++request;story=null;scenes=[];removeHighlight();mount();root.dataset.layout='split';screen('Opowieści');root.append(el('p','Wczytywanie…'));try{const data=await json(endpoint);if(!active||seq!==request)return;const items=Array.isArray(data)?data:(data.narratives||data.items||data.results);if(!Array.isArray(items))throw Error('Nieznany format listy Opowieści');screen('Opowieści');if(!items.length)root.append(el('p','Brak opublikowanych opowieści.'));for(const item of items){if(item.id==null)continue;root.append(button(item.title?.rendered||item.title||('Opowieść '+item.id),()=>open(item.id)))}}catch(e){if(active&&seq===request)fail(e)}}
+async function open(id){const seq=++request;screen('Opowieści');root.append(el('p','Wczytywanie…'));try{const data=await json(endpoint+'/'+encodeURIComponent(id));if(!active||seq!==request)return;if(!Array.isArray(data.scenes)||!data.scenes.length){fail(Error('Brak scen'),list,'Ta Opowieść nie ma jeszcze scen do pokazania.','Wróć do listy Opowieści');return}story=data;scenes=[...data.scenes].sort((a,b)=>Number(a.order||0)-Number(b.order||0));scene(0)}catch(e){if(active&&seq===request)fail(e,()=>open(id))}}
+async function list(){const seq=++request;story=null;scenes=[];removeHighlight();mount();root.dataset.layout='split';screen('Opowieści');root.append(el('p','Wczytywanie…'));try{const data=await json(endpoint);if(!active||seq!==request)return;const items=Array.isArray(data)?data:(data.narratives||data.items||data.results);if(!Array.isArray(items))throw Error('Nieznany format listy Opowieści');screen('Opowieści');if(!items.length)root.append(el('p','Brak opublikowanych opowieści.'));for(const item of items){if(item.id==null)continue;root.append(button(plain(item.title)||('Opowieść '+item.id),()=>open(item.id)))}}catch(e){if(active&&seq===request)fail(e,list)}}
 function start(){if(active||!map||!host)return;const c=map.getCenter();snapshot={center:[c.lng,c.lat],zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch(),padding:map.getPadding()};active=true;host.enter();list()}
 function exit(restorePanel=true){if(!active)return;active=false;request++;removeHighlight();root?.remove();root=null;story=null;scenes=[];const old=snapshot;snapshot=null;host.leave(restorePanel);if(old){map.stop();map.jumpTo({...old,bearing:0,pitch:0})}}
 window.DPNarratives=Object.freeze({init(m,h){map=m;host=h},start,exit,active:()=>active,restore:restoreHighlight,reveal:()=>{if(active)host?.reveal?.()}});
