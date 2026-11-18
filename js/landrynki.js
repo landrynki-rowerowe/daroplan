@@ -3,7 +3,7 @@
 'use strict';
 const API=()=>window.DPLandrynkiAPI;
 let map=null,show=null,onExit=null,active=false,items=[],selected=null,packageData=null,frame=0,last=0,revision=0;
-let packageList=[],packagePins=[],detailsCache=new Map(),listSession=0,view='closed';
+let packageList=[],packagePins=[],detailsCache=new Map(),listSession=0,view='closed',message=null;
 const el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n};
 const rad=Math.PI/180;
 function meters(a,b){const x=(b[0]-a[0])*rad*Math.cos((a[1]+b[1])*rad/2)*6371000,y=(b[1]-a[1])*rad*6371000;return Math.hypot(x,y)}
@@ -67,7 +67,7 @@ function render({silent=false}={}){
   const exitButton=el('button','dp-landrynki-back','←');exitButton.type='button';exitButton.setAttribute('aria-label','Wróć do listy paczuszek Landrynek');exitButton.title='Wszystkie paczuszki';exitButton.onclick=goList;
   heading.append(exitButton,el('h2','dp-landrynki-title',packageData.title));wrap.append(heading);
   // Opis HTML z CMS wyświetlamy jako tekst; nie wstawiamy niezweryfikowanego HTML.
-  if(packageData.descriptionHtml){const text=new DOMParser().parseFromString(packageData.descriptionHtml,'text/html').body.textContent||'';wrap.append(el('p','dp-landrynki-description',text));}
+  if(packageData.descriptionHtml){const text=htmlToText(packageData.descriptionHtml);if(text)wrap.append(el('p','dp-landrynki-description',text));}
   const grid=el('div','dp-landrynki-thumbs');
   for(const route of packageData.routes){
    const b=el('button','dp-landrynki-thumb');b.type='button';b.title=route.name;b.setAttribute('aria-label','Pokaż przejazd: '+route.name);b.style.borderColor=route.color;
@@ -81,13 +81,37 @@ function render({silent=false}={}){
   if(panel)panel.replaceChildren(wrap);
  }
 }
+// Akapity i <br> z CMS jako znaki nowej linii; CSS ma white-space:pre-line.
+function htmlToText(html){
+ const body=new DOMParser().parseFromString(html,'text/html').body;
+ for(const br of body.querySelectorAll('br'))br.replaceWith('\n');
+ for(const block of body.querySelectorAll('p,div,li,h1,h2,h3,h4,h5,h6,blockquote'))block.append('\n\n');
+ return (body.textContent||'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+// Wspólny ekran wczytywania i błędu: strzałka powrotu, tekst, opcjonalnie „Spróbuj ponownie”.
+function showMessage(next){
+ message=next;view='message';syncPins();renderMessage();
+}
+function renderMessage(){
+ if(view!=='message'||!message||!show)return;
+ const {title,text,back,backLabel,retry}=message;
+ const box=el('div','dp-landrynki');
+ const heading=el('div','dp-landrynki-heading');
+ const b=el('button','dp-landrynki-back','←');b.type='button';b.title=backLabel;b.setAttribute('aria-label',backLabel);b.onclick=back;
+ heading.append(b,el('h2','dp-landrynki-title',title));box.append(heading);
+ const p=el('p','',text);if(!retry)p.setAttribute('aria-live','polite');box.append(p);
+ if(retry){const r=el('button','dp-landrynki-open','Spróbuj ponownie');r.type='button';r.onclick=retry;box.append(r)}
+ show(title,box);
+}
+function backFromPackage(){if(packageList.length)goList();else choose()}
 function showCurrent(){
  if(view==='package'&&packageData){render();return true}
  if(view==='list'){renderList();return true}
+ if(view==='message'){renderMessage();return true}
  return false;
 }
 function deactivate(){
- revision++;listSession++;removeRouteMarkers();for(const obj of packagePins)obj.marker.remove();packagePins=[];packageList=[];detailsCache.clear();view='closed';
+ revision++;listSession++;removeRouteMarkers();for(const obj of packagePins)obj.marker.remove();packagePins=[];packageList=[];detailsCache.clear();view='closed';message=null;
 }
 function addMarkers(data){
  for(const route of data.routes){
@@ -107,13 +131,19 @@ function framePackage(){
 }
 async function open(id){
  if(!map||!API())return;
- revision++;const current=revision;removeRouteMarkers();view='package';
+ revision++;const current=revision;removeRouteMarkers();
+ const cached=detailsCache.get(Number(id)),title=cached?.title||packageList.find(p=>p.id===Number(id))?.title||'Landrynki';
+ const back={back:backFromPackage,backLabel:'Wróć do listy paczuszek Landrynek'};
+ if(!cached)showMessage({title,text:'Wczytywanie…',...back});
  try{
-  const data=detailsCache.get(Number(id))||await API().detail(id);
+  const data=cached||await API().detail(id);
   if(current!==revision)return;
-  if(!data.routes.length)throw Error('Brak poprawnych tras w tej paczuszce');
-  detailsCache.set(data.id,data);packageData=data;active=true;syncPins();addMarkers(data);render();framePackage();frame=requestAnimationFrame(loop);
- }catch(err){if(current!==revision)return;console.warn('[Landrynki]',err);if(show)show('Landrynki',el('p','','Nie udało się wczytać paczuszki. Sprawdź API i uprawnienia CORS.'));}
+  if(!data.routes.length){console.warn('[Landrynki] Brak poprawnych tras w paczuszce',id);showMessage({title,text:'Ta paczuszka nie ma jeszcze przejazdów do pokazania.',...back});return}
+  detailsCache.set(data.id,data);packageData=data;active=true;view='package';message=null;syncPins();addMarkers(data);render();framePackage();frame=requestAnimationFrame(loop);
+ }catch(err){
+  if(current!==revision)return;console.warn('[Landrynki]',err);
+  showMessage({title,text:'Nie udało się wczytać tej paczuszki. Sprawdź połączenie z internetem i spróbuj ponownie.',...back,retry:()=>open(id)});
+ }
 }
 function renderList(){
  if(view!=='list'||!show)return;
@@ -125,7 +155,7 @@ function renderList(){
  for(const item of packageList){
   const b=el('button','dp-landrynki-card');b.type='button';
   if(item.featuredImageUrl){const img=el('img');img.src=item.featuredImageUrl;img.alt='';img.loading='lazy';b.append(img)}
-  const content=el('span','dp-landrynki-card-text');content.append(el('strong','',item.title),el('small','',item.excerpt||item.routeCount+' przejazdy'));b.append(content);
+  const content=el('span','dp-landrynki-card-text');content.append(el('strong','',item.title),el('small','',item.excerpt||API().routeLabel(item.routeCount)));b.append(content);
   b.onclick=()=>open(item.id);box.append(b);
  }
  show('Landrynki Rowerowe',box);
@@ -164,16 +194,19 @@ async function loadPins(list,session){
 }
 async function choose(){
  if(!map||!API())return;
- deactivate();const current=revision,session=listSession;view='list';
+ deactivate();const current=revision,session=listSession;
+ const back={back:exitLandrynki,backLabel:'Zakończ Landrynki i wróć do STORY'};
+ showMessage({title:'Landrynki Rowerowe',text:'Wczytywanie…',...back});
  try{
   const list=await API().list();
   if(current!==revision||session!==listSession)return;
-  packageList=list;renderList();
+  packageList=list;view='list';message=null;renderList();
   // Nie wybieraj automatycznie pierwszej paczuszki, nawet jeśli jest jedyna.
   loadPins(list,session);
  }catch(err){
   if(current!==revision||session!==listSession)return;
-  console.warn('[Landrynki]',err);show('Landrynki',el('p','','Nie można pobrać Landrynek z WordPressa.'));
+  console.warn('[Landrynki]',err);
+  showMessage({title:'Landrynki Rowerowe',text:'Nie udało się wczytać Landrynek. Sprawdź połączenie z internetem i spróbuj ponownie.',...back,retry:choose});
  }
 }
 window.DPLandrynki=Object.freeze({init(m,renderPanel,exitCallback){map=m;show=renderPanel;onExit=exitCallback},choose,open,deactivate,onPanelHide,showCurrent,refreshOpacity,isActive:()=>view!=='closed'});

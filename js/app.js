@@ -653,7 +653,7 @@ function showWelcome(index=0){
    if(!root.isConnected||!list.length||welcomeSlides[welcomeIndex]!==slide)return;
    const item=list[0],card=textNode('button','','dp-landrynki-card');card.type='button';
    if(item.featuredImageUrl){const img=document.createElement('img');img.src=item.featuredImageUrl;img.alt='';img.loading='lazy';card.append(img)}
-   const content=textNode('span','','dp-landrynki-card-text');content.append(textNode('strong',item.title),textNode('small',item.excerpt||item.routeCount+' przejazdy'));card.append(content);
+   const content=textNode('span','','dp-landrynki-card-text');content.append(textNode('strong',item.title),textNode('small',item.excerpt||window.DPLandrynkiAPI.routeLabel(item.routeCount)));card.append(content);
    card.onclick=()=>{configureModes('historia');openLandrynki()};
    root.insertBefore(card,nav);
   }).catch(err=>console.warn('[Landrynki] Karta powitalna:',err));
