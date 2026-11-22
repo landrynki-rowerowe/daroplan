@@ -41,104 +41,176 @@ jobs:
         env:
           DEPLOY_FILE: ${{ inputs.filename }}
           CMS_PATH: ${{ vars.CMS_MU_PLUGINS_PATH }}
+          PROBE_ONLY: ${{ inputs.probe_only }}
         run: |
           set -euo pipefail
-          if [[ "${{ inputs.probe_only }}" != "true" ]]; then
+          # Wartosci trafiaja do skryptu na serwerze, wiec dopuszczamy tylko bezpieczne znaki.
+          if [[ -n "$DEPLOY_FILE" ]]; then
             [[ "$DEPLOY_FILE" =~ ^daroplan-[A-Za-z0-9._-]+\.php$ ]] || { echo "Invalid MU-plugin filename"; exit 1; }
+          fi
+          if [[ "$PROBE_ONLY" != "true" ]]; then
+            [[ -n "$DEPLOY_FILE" ]] || { echo "Set filename"; exit 1; }
             test -f "cms/mu-plugins/$DEPLOY_FILE"
             php -l "cms/mu-plugins/$DEPLOY_FILE"
           fi
           [[ -n "$CMS_PATH" ]] || { echo "Set repository variable CMS_MU_PLUGINS_PATH"; exit 1; }
           [[ "$CMS_PATH" == *lab.otwartyplan.org*/wp-content/mu-plugins ]] || { echo "Verify the CMS directory path"; exit 1; }
+          [[ "$CMS_PATH" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "CMS_MU_PLUGINS_PATH contains unsupported characters"; exit 1; }
+
+      - name: Przygotuj polaczenie SSH kluczem
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+
+          test -n "$SSH_KEY" || { echo "Brak sekretu SSH_PRIVATE_KEY"; exit 1; }
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/daroplan_key
+          ssh-keygen -y -P '' -f ~/.ssh/daroplan_key > /dev/null || {
+            echo "SSH_PRIVATE_KEY nie jest kluczem prywatnym bez hasla"
+            exit 1
+          }
+
+          ssh-keyscan -T 15 -p "$PORT" \
+            -t ed25519 "$HOST" \
+            > ~/.ssh/known_hosts 2>/dev/null
+
+          test -s ~/.ssh/known_hosts
+
+          ACTUAL=$(ssh-keygen -lf \
+            ~/.ssh/known_hosts -E sha256 \
+            | awk '{print $2}')
+
+          test "$ACTUAL" = "$EXPECTED" || {
+            echo "FINGERPRINT MISMATCH"
+            exit 1
+          }
+
+          cat > ~/.ssh/config <<EOF
+          Host dhosting
+            HostName $HOST
+            Port $PORT
+            User $USER
+            IdentityFile ~/.ssh/daroplan_key
+            IdentitiesOnly yes
+            PreferredAuthentications publickey
+            PasswordAuthentication no
+            KbdInteractiveAuthentication no
+            BatchMode yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            ConnectTimeout 20
+            ServerAliveInterval 15
+          EOF
+
+          echo "FINGERPRINT OK"
 
       - name: Confirm destination exists (do not edit files)
-        uses: appleboy/ssh-action@v1
+        shell: bash
         env:
           CMS_PATH: ${{ vars.CMS_MU_PLUGINS_PATH }}
           DEPLOY_FILE: ${{ inputs.filename }}
           PROBE_ONLY: ${{ inputs.probe_only }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          envs: CMS_PATH,DEPLOY_FILE,PROBE_ONLY
-          script: |
-            set -eu
-            cd "$HOME"
-            test -d "$CMS_PATH"
-            test -w "$CMS_PATH"
-            echo "CMS target verified: $CMS_PATH"
-            if [ "$PROBE_ONLY" = "true" ]; then
-              echo "PROBE OK: directory exists and is writable; no files were transferred or modified."
-              exit 0
-            fi
-            if [ -f "$CMS_PATH/$DEPLOY_FILE" ]; then
-              echo "Existing MU-plugin will be backed up if deployment is approved."
-            else
-              echo "New MU-plugin; no existing file will be replaced."
-            fi
+        run: |
+          set -euo pipefail
+          {
+            printf "CMS_PATH='%s'\n" "$CMS_PATH"
+            printf "DEPLOY_FILE='%s'\n" "$DEPLOY_FILE"
+            printf "PROBE_ONLY='%s'\n" "$PROBE_ONLY"
+            cat <<'EOF'
+          set -eu
+          cd "$HOME"
+          test -d "$CMS_PATH"
+          test -w "$CMS_PATH"
+          echo "CMS target verified: $CMS_PATH"
+          if [ "$PROBE_ONLY" = "true" ]; then
+            echo "PROBE OK: directory exists and is writable; no files were transferred or modified."
+            exit 0
+          fi
+          if [ -f "$CMS_PATH/$DEPLOY_FILE" ]; then
+            echo "Existing MU-plugin will be backed up if deployment is approved."
+          else
+            echo "New MU-plugin; no existing file will be replaced."
+          fi
+          EOF
+          } | ssh dhosting 'sh -s'
 
       - name: Transfer single file to staging (not the live directory)
         if: inputs.probe_only == false
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          source: "cms/mu-plugins/${{ inputs.filename }}"
-          target: ".daroplan-cms-stage/${{ github.run_id }}"
-          strip_components: 2
-          overwrite: true
-          rm: false
+        shell: bash
+        env:
+          DEPLOY_FILE: ${{ inputs.filename }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          ssh dhosting "mkdir -p '.daroplan-cms-stage/$RUN_ID'"
+          scp "cms/mu-plugins/$DEPLOY_FILE" \
+            "dhosting:.daroplan-cms-stage/$RUN_ID/$DEPLOY_FILE"
+          echo "STAGED: .daroplan-cms-stage/$RUN_ID/$DEPLOY_FILE"
 
       - name: Compare / back up / optionally deploy
         if: inputs.probe_only == false
-        uses: appleboy/ssh-action@v1
+        shell: bash
         env:
           CMS_PATH: ${{ vars.CMS_MU_PLUGINS_PATH }}
           DEPLOY_FILE: ${{ inputs.filename }}
           APPLY: ${{ inputs.apply }}
           RUN_ID: ${{ github.run_id }}
           PHP_CLI: ${{ vars.CMS_PHP_CLI }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          envs: CMS_PATH,DEPLOY_FILE,APPLY,RUN_ID,PHP_CLI
-          script: |
-            set -eu
-            source_file="$HOME/.daroplan-cms-stage/$RUN_ID/$DEPLOY_FILE"
-            test -s "$source_file"
-            test -d "$CMS_PATH"
-            echo "Staged file checksum:"
-            sha256sum "$source_file"
-            if [ -f "$CMS_PATH/$DEPLOY_FILE" ]; then
-              echo "Current file checksum:"
-              sha256sum "$CMS_PATH/$DEPLOY_FILE"
-            fi
-            case "$PHP_CLI" in
-              php74|php8|php81|php82|php83|php84|php85) ;;
-              *) echo "Set CMS_PHP_CLI to the PHP version used by lab.otwartyplan.org (e.g. php83)."; exit 1 ;;
-            esac
-            command -v "$PHP_CLI" >/dev/null 2>&1 || { echo "Configured PHP CLI unavailable: $PHP_CLI"; exit 1; }
-            "$PHP_CLI" -v
-            "$PHP_CLI" -l "$source_file"
-            if [ "$APPLY" != "true" ]; then
-              echo "DRY RUN: no live CMS file changed."
-              rm -f "$source_file"
-              exit 0
-            fi
-            mkdir -p "$HOME/.daroplan-cms-backups/$RUN_ID"
-            if [ -f "$CMS_PATH/$DEPLOY_FILE" ]; then
-              cp -p "$CMS_PATH/$DEPLOY_FILE" "$HOME/.daroplan-cms-backups/$RUN_ID/$DEPLOY_FILE"
-            fi
-            temp_file="$CMS_PATH/.$DEPLOY_FILE.deploy-$RUN_ID"
-            cp "$source_file" "$temp_file"
-            chmod 644 "$temp_file"
-            mv -f "$temp_file" "$CMS_PATH/$DEPLOY_FILE"
-            test -s "$CMS_PATH/$DEPLOY_FILE"
+        run: |
+          set -euo pipefail
+          [[ "$PHP_CLI" =~ ^[a-z0-9]*$ ]] || { echo "CMS_PHP_CLI contains unsupported characters"; exit 1; }
+          {
+            printf "CMS_PATH='%s'\n" "$CMS_PATH"
+            printf "DEPLOY_FILE='%s'\n" "$DEPLOY_FILE"
+            printf "APPLY='%s'\n" "$APPLY"
+            printf "RUN_ID='%s'\n" "$RUN_ID"
+            printf "PHP_CLI='%s'\n" "$PHP_CLI"
+            cat <<'EOF'
+          set -eu
+          source_file="$HOME/.daroplan-cms-stage/$RUN_ID/$DEPLOY_FILE"
+          test -s "$source_file"
+          test -d "$CMS_PATH"
+          echo "Staged file checksum:"
+          sha256sum "$source_file"
+          if [ -f "$CMS_PATH/$DEPLOY_FILE" ]; then
+            echo "Current file checksum:"
+            sha256sum "$CMS_PATH/$DEPLOY_FILE"
+          fi
+          case "$PHP_CLI" in
+            php74|php8|php81|php82|php83|php84|php85) ;;
+            *) echo "Set CMS_PHP_CLI to the PHP version used by lab.otwartyplan.org (e.g. php84)."; exit 1 ;;
+          esac
+          command -v "$PHP_CLI" >/dev/null 2>&1 || { echo "Configured PHP CLI unavailable: $PHP_CLI"; exit 1; }
+          "$PHP_CLI" -v
+          "$PHP_CLI" -l "$source_file"
+          if [ "$APPLY" != "true" ]; then
+            echo "DRY RUN: no live CMS file changed."
             rm -f "$source_file"
-            echo "CMS DEPLOY OK. Backups: ~/.daroplan-cms-backups/$RUN_ID/"
+            exit 0
+          fi
+          mkdir -p "$HOME/.daroplan-cms-backups/$RUN_ID"
+          if [ -f "$CMS_PATH/$DEPLOY_FILE" ]; then
+            cp -p "$CMS_PATH/$DEPLOY_FILE" "$HOME/.daroplan-cms-backups/$RUN_ID/$DEPLOY_FILE"
+          fi
+          temp_file="$CMS_PATH/.$DEPLOY_FILE.deploy-$RUN_ID"
+          cp "$source_file" "$temp_file"
+          chmod 644 "$temp_file"
+          mv -f "$temp_file" "$CMS_PATH/$DEPLOY_FILE"
+          test -s "$CMS_PATH/$DEPLOY_FILE"
+          rm -f "$source_file"
+          echo "CMS DEPLOY OK. Backups: ~/.daroplan-cms-backups/$RUN_ID/"
+          EOF
+          } | ssh dhosting 'sh -s'
+
+      - name: Usun klucz z maszyny
+        if: always()
+        run: rm -f ~/.ssh/daroplan_key
