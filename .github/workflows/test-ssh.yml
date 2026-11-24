@@ -1,5 +1,8 @@
-
 name: Test SSH - dhosting
+
+# Sprawdza logowanie kluczem SSH (sekret SSH_PRIVATE_KEY) i odcisk serwera
+# (SSH_FINGERPRINT). Logowanie haslem jest wylaczone po stronie klienta,
+# wiec zielony wynik oznacza, ze klucz dziala.
 
 on:
   workflow_dispatch:
@@ -11,27 +14,83 @@ jobs:
   test-connection:
     runs-on: ubuntu-latest
     steps:
+      - name: Przygotuj polaczenie SSH kluczem
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+
+          test -n "$SSH_KEY" || { echo "Brak sekretu SSH_PRIVATE_KEY"; exit 1; }
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/daroplan_key
+          ssh-keygen -y -P '' -f ~/.ssh/daroplan_key > /dev/null || {
+            echo "SSH_PRIVATE_KEY nie jest kluczem prywatnym bez hasla"
+            exit 1
+          }
+
+          ssh-keyscan -T 15 -p "$PORT" \
+            -t ed25519 "$HOST" \
+            > ~/.ssh/known_hosts 2>/dev/null
+
+          test -s ~/.ssh/known_hosts
+
+          ACTUAL=$(ssh-keygen -lf \
+            ~/.ssh/known_hosts -E sha256 \
+            | awk '{print $2}')
+
+          test "$ACTUAL" = "$EXPECTED" || {
+            echo "FINGERPRINT MISMATCH"
+            exit 1
+          }
+
+          cat > ~/.ssh/config <<EOF
+          Host dhosting
+            HostName $HOST
+            Port $PORT
+            User $USER
+            IdentityFile ~/.ssh/daroplan_key
+            IdentitiesOnly yes
+            PreferredAuthentications publickey
+            PasswordAuthentication no
+            KbdInteractiveAuthentication no
+            BatchMode yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            ConnectTimeout 20
+            ServerAliveInterval 15
+          EOF
+
+          echo "FINGERPRINT OK"
+
       - name: Sprawdz katalog DaRoPlanu
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          timeout: 30s
-          command_timeout: 30s
-          
-          script: |
-            echo "Katalog public_html:"
-            ls -la rowerowy.otwartyplan.org/public_html
+        run: |
+          set -euo pipefail
 
-            echo "Katalog aplikacji mapa:"
-            ls -la rowerowy.otwartyplan.org/public_html/mapa
+          ssh dhosting 'sh -s' <<'EOF'
+          echo "LOGOWANIE KLUCZEM OK"
 
-            echo "Sprawdzenie index.html:"
-            if [ -f rowerowy.otwartyplan.org/public_html/mapa/index.html ]; then
-              echo "OK - znaleziono DaRoPlan index.html"
-            else
-              echo "Nie znaleziono index.html w tej lokalizacji"
-            fi
+          echo "Katalog public_html:"
+          ls -la rowerowy.otwartyplan.org/public_html
 
+          echo "Katalog aplikacji mapa:"
+          ls -la rowerowy.otwartyplan.org/public_html/mapa
+
+          echo "Sprawdzenie index.html:"
+          if [ -f rowerowy.otwartyplan.org/public_html/mapa/index.html ]; then
+            echo "OK - znaleziono DaRoPlan index.html"
+          else
+            echo "Nie znaleziono index.html w tej lokalizacji"
+          fi
+          EOF
+
+      - name: Usun klucz z maszyny
+        if: always()
+        run: rm -f ~/.ssh/daroplan_key
