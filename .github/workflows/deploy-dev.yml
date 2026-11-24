@@ -1,6 +1,10 @@
 
 name: Publikuj DaRoPlan DEV
 
+# Logowanie kluczem SSH (sekret SSH_PRIVATE_KEY) z weryfikacja odcisku serwera
+# (SSH_FINGERPRINT), jak w backup.yml i test-ssh.yml. Logowanie haslem jest
+# wylaczone po stronie klienta.
+
 on:
   workflow_dispatch:
 
@@ -32,21 +36,27 @@ jobs:
           test -d api
           echo "PLIKI OK"
 
-      - name: Zainstaluj sshpass
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y sshpass
-
-      - name: Przygotuj bezpieczne polaczenie SSH
+      - name: Przygotuj polaczenie SSH kluczem
         env:
           HOST: ${{ secrets.SSH_HOST }}
           PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
           EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
+          umask 077
+
+          test -n "$SSH_KEY" || { echo "Brak sekretu SSH_PRIVATE_KEY"; exit 1; }
 
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/daroplan_key
+          ssh-keygen -y -P '' -f ~/.ssh/daroplan_key > /dev/null || {
+            echo "SSH_PRIVATE_KEY nie jest kluczem prywatnym bez hasla"
+            exit 1
+          }
 
           ssh-keyscan -T 15 -p "$PORT" \
             -t ed25519 "$HOST" \
@@ -63,82 +73,69 @@ jobs:
             exit 1
           }
 
-          chmod 600 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host dhosting
+            HostName $HOST
+            Port $PORT
+            User $USER
+            IdentityFile ~/.ssh/daroplan_key
+            IdentitiesOnly yes
+            PreferredAuthentications publickey
+            PasswordAuthentication no
+            KbdInteractiveAuthentication no
+            BatchMode yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            ConnectTimeout 20
+            ServerAliveInterval 15
+          EOF
+
           echo "FINGERPRINT OK"
 
       - name: Sprawdz katalog docelowy
-        env:
-          HOST: ${{ secrets.SSH_HOST }}
-          PORT: ${{ secrets.SSH_PORT }}
-          USER: ${{ secrets.SSH_USER }}
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sshpass -e ssh \
-            -o StrictHostKeyChecking=yes \
-            -o ConnectTimeout=20 \
-            -p "$PORT" \
-            "$USER@$HOST" \
+          ssh dhosting \
             'test -d rowerowy.otwartyplan.org/public_html/mapa-dev && test ! -L rowerowy.otwartyplan.org/public_html/mapa-dev'
 
           echo "KATALOG DEV OK"
 
       - name: Utworz kopie mapa-dev przed wdrozeniem
-        env:
-          HOST: ${{ secrets.SSH_HOST }}
-          PORT: ${{ secrets.SSH_PORT }}
-          USER: ${{ secrets.SSH_USER }}
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sshpass -e ssh \
-            -o StrictHostKeyChecking=yes \
-            -o ConnectTimeout=20 \
-            -p "$PORT" \
-            "$USER@$HOST" \
-            'set -eu
-             cd "$HOME/rowerowy.otwartyplan.org"
-             test -d public_html/mapa-dev
-             test ! -L public_html/mapa-dev
-             test -s public_html/mapa-dev/index.html
-             mkdir -p backup-daroplan
-             DATE=$(date -u +%Y%m%d-%H%M%S)
-             ARCHIVE="backup-daroplan/mapa-dev-$DATE.tar.gz"
-             tar -czf "$ARCHIVE" -C public_html mapa-dev
-             test -s "$ARCHIVE"
-             echo "BACKUP DEV OK: $ARCHIVE"'
+          ssh dhosting 'sh -s' <<'EOF'
+          set -eu
+          cd "$HOME/rowerowy.otwartyplan.org"
+          test -d public_html/mapa-dev
+          test ! -L public_html/mapa-dev
+          test -s public_html/mapa-dev/index.html
+          mkdir -p backup-daroplan
+          DATE=$(date -u +%Y%m%d-%H%M%S)
+          ARCHIVE="backup-daroplan/mapa-dev-$DATE.tar.gz"
+          tar -czf "$ARCHIVE" -C public_html mapa-dev
+          test -s "$ARCHIVE"
+          echo "BACKUP DEV OK: $ARCHIVE"
+          EOF
 
       - name: Publikuj pliki DEV
-        env:
-          HOST: ${{ secrets.SSH_HOST }}
-          PORT: ${{ secrets.SSH_PORT }}
-          USER: ${{ secrets.SSH_USER }}
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sshpass -e scp \
-            -o StrictHostKeyChecking=yes \
-            -P "$PORT" \
-            -r \
+          scp -r \
             index.html css js api \
-            "$USER@$HOST:rowerowy.otwartyplan.org/public_html/mapa-dev/"
+            dhosting:rowerowy.otwartyplan.org/public_html/mapa-dev/
 
           echo "PLIKI PRZESLANE"
 
       - name: Sprawdz publikacje
-        env:
-          HOST: ${{ secrets.SSH_HOST }}
-          PORT: ${{ secrets.SSH_PORT }}
-          USER: ${{ secrets.SSH_USER }}
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sshpass -e ssh \
-            -o StrictHostKeyChecking=yes \
-            -p "$PORT" \
-            "$USER@$HOST" \
+          ssh dhosting \
             'cd rowerowy.otwartyplan.org/public_html/mapa-dev && test -s index.html && test -s js/app.js && echo "DAROPLAN DEV DEPLOY OK"'
+
+      - name: Usun klucz z maszyny
+        if: always()
+        run: rm -f ~/.ssh/daroplan_key

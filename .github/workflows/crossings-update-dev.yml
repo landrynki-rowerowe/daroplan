@@ -325,21 +325,27 @@ jobs:
           cp wynik/przejazdy-zdmk.geojson /tmp/przejazdy-zdmk.geojson.new
           cp wynik/propozycje-spoleczne.geojson /tmp/propozycje-spoleczne.geojson.new
 
-      - name: Zainstaluj sshpass
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y sshpass
-
-      - name: Zweryfikuj klucz hosta dhostingu
+      - name: Przygotuj polaczenie SSH kluczem
         env:
           HOST: ${{ secrets.SSH_HOST }}
           PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
           EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
+          umask 077
+
+          test -n "$SSH_KEY" || { echo "Brak sekretu SSH_PRIVATE_KEY"; exit 1; }
 
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/daroplan_key
+          ssh-keygen -y -P '' -f ~/.ssh/daroplan_key > /dev/null || {
+            echo "SSH_PRIVATE_KEY nie jest kluczem prywatnym bez hasla"
+            exit 1
+          }
 
           ssh-keyscan -T 15 -p "$PORT" -t ed25519 "$HOST" \
             > ~/.ssh/known_hosts 2>/dev/null
@@ -347,7 +353,6 @@ jobs:
           test -s ~/.ssh/known_hosts
 
           ACTUAL=$(ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk '{print $2}')
-
           test "$ACTUAL" = "$EXPECTED" || {
             echo "FINGERPRINT MISMATCH"
             echo "Oczekiwano: $EXPECTED"
@@ -355,53 +360,46 @@ jobs:
             exit 1
           }
 
-          chmod 600 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host dhosting
+            HostName $HOST
+            Port $PORT
+            User $USER
+            IdentityFile ~/.ssh/daroplan_key
+            IdentitiesOnly yes
+            PreferredAuthentications publickey
+            PasswordAuthentication no
+            KbdInteractiveAuthentication no
+            BatchMode yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            ConnectTimeout 20
+            ServerAliveInterval 15
+          EOF
+
+          echo "FINGERPRINT OK"
 
       - name: Sprawdź bezpieczny katalog docelowy DEV
-        env:
-          HOST: ${{ secrets.SSH_HOST }}
-          PORT: ${{ secrets.SSH_PORT }}
-          USER: ${{ secrets.SSH_USER }}
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sshpass -e ssh \
-            -o StrictHostKeyChecking=yes \
-            -o ConnectTimeout=20 \
-            -p "$PORT" \
-            "$USER@$HOST" \
+          ssh dhosting \
             'test -d rowerowy.otwartyplan.org/public_html/mapa-dev/data && test ! -L rowerowy.otwartyplan.org/public_html/mapa-dev/data'
 
       - name: Wyślij nowe dane jako .new
-        env:
-          HOST: ${{ secrets.SSH_HOST }}
-          PORT: ${{ secrets.SSH_PORT }}
-          USER: ${{ secrets.SSH_USER }}
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sshpass -e scp \
-            -o StrictHostKeyChecking=yes \
-            -P "$PORT" \
+          scp \
             /tmp/przejazdy-zdmk.geojson.new \
             /tmp/propozycje-spoleczne.geojson.new \
-            "$USER@$HOST:rowerowy.otwartyplan.org/public_html/mapa-dev/data/"
+            dhosting:rowerowy.otwartyplan.org/public_html/mapa-dev/data/
 
       - name: Zachowaj poprzednią wersję i podmień dane atomowo
-        env:
-          HOST: ${{ secrets.SSH_HOST }}
-          PORT: ${{ secrets.SSH_PORT }}
-          USER: ${{ secrets.SSH_USER }}
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sshpass -e ssh \
-            -o StrictHostKeyChecking=yes \
-            -p "$PORT" \
-            "$USER@$HOST" \
+          ssh dhosting \
             'bash -se' <<'REMOTE'
           set -euo pipefail
 
@@ -524,3 +522,7 @@ jobs:
                 state: 'closed'
               });
             }
+
+      - name: Usun klucz z maszyny
+        if: always()
+        run: rm -f ~/.ssh/daroplan_key
