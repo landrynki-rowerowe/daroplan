@@ -1,6 +1,10 @@
 
 name: Test OpenSSH - dhosting
 
+# Najkrotszy test polaczenia: logowanie kluczem (SSH_PRIVATE_KEY), odcisk
+# serwera (SSH_FINGERPRINT), polecenie pwd. Logowanie haslem jest wylaczone po
+# stronie klienta. Szerszy test katalogow: test-ssh.yml.
+
 on:
   workflow_dispatch:
 
@@ -12,21 +16,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Zainstaluj klienta SSH
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y sshpass
-
-      - name: Zweryfikuj klucz serwera i przygotuj SSH
+      - name: Przygotuj polaczenie SSH kluczem
         env:
           HOST: ${{ secrets.SSH_HOST }}
           PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
           EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          set -eu
+          set -euo pipefail
+          umask 077
+
+          test -n "$SSH_KEY" || { echo "Brak sekretu SSH_PRIVATE_KEY"; exit 1; }
 
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/daroplan_key
+          ssh-keygen -y -P '' -f ~/.ssh/daroplan_key > /dev/null || {
+            echo "SSH_PRIVATE_KEY nie jest kluczem prywatnym bez hasla"
+            exit 1
+          }
 
           ssh-keyscan -T 15 -p "$PORT" \
             -t ed25519 "$HOST" \
@@ -43,23 +53,31 @@ jobs:
             exit 1
           }
 
-          chmod 600 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host dhosting
+            HostName $HOST
+            Port $PORT
+            User $USER
+            IdentityFile ~/.ssh/daroplan_key
+            IdentitiesOnly yes
+            PreferredAuthentications publickey
+            PasswordAuthentication no
+            KbdInteractiveAuthentication no
+            BatchMode yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            ConnectTimeout 20
+            ServerAliveInterval 15
+          EOF
+
           echo "FINGERPRINT OK"
 
       - name: Przetestuj logowanie OpenSSH
-        env:
-          HOST: ${{ secrets.SSH_HOST }}
-          PORT: ${{ secrets.SSH_PORT }}
-          USER: ${{ secrets.SSH_USER }}
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          set -eu
+          set -euo pipefail
 
-          sshpass -e ssh \
-            -o StrictHostKeyChecking=yes \
-            -o PreferredAuthentications=password,keyboard-interactive \
-            -o ConnectTimeout=20 \
-            -o NumberOfPasswordPrompts=1 \
-            -p "$PORT" \
-            "$USER@$HOST" \
-            'echo "OPENSSH CONNECTED"; pwd'
+          ssh dhosting 'echo "OPENSSH CONNECTED"; pwd'
+
+      - name: Usun klucz z maszyny
+        if: always()
+        run: rm -f ~/.ssh/daroplan_key
