@@ -4,7 +4,7 @@ To narzędzie dotyczy **tylko** CMS `lab.otwartyplan.org`. Nie wdraża frontendu
 
 ## Konfiguracja jednorazowa
 1. W repozytorium GitHub → **Settings → Secrets and variables → Actions → Variables** dodaj `CMS_MU_PLUGINS_PATH`, wskazując dokładny katalog CMS na dhosting (musi zawierać `lab.otwartyplan.org` i kończyć się `/wp-content/mu-plugins`). Ustal ścieżkę przez SSH: `cd .../wp-content/mu-plugins && pwd`. Nie zgaduj ścieżki.
-2. Wykorzystujemy istniejące repozytoryjne sekrety `SSH_HOST`, `SSH_USER`, `SSH_PASSWORD`, `SSH_PORT`, obecnie używane przez workflow frontendu. Niczego nie wpisuj do plików repozytorium.
+2. Wykorzystujemy wspólne sekrety repozytorium `SSH_HOST`, `SSH_USER`, `SSH_PORT`, `SSH_FINGERPRINT` i `SSH_PRIVATE_KEY` (logowanie kluczem, jak we wszystkich workflowach). Zmienna `CMS_PHP_CLI` wskazuje polecenie PHP na serwerze (`php84`). Niczego nie wpisuj do plików repozytorium.
 3. Przeglądnij `cms/mu-plugins/` i dodawaj tam **aktualne, zatwierdzone** wersje plików PHP. Starsze kopie archiwalne nie mogą być publikowane jako aktualne.
 
 ## Publikowanie

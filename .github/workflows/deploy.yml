@@ -1,6 +1,11 @@
 
 name: Publikuj DaRoPlan
 
+# Publikacja produkcyjna: kod z galezi main do /mapa/.
+# Logowanie kluczem SSH (sekret SSH_PRIVATE_KEY) z weryfikacja odcisku serwera
+# (SSH_FINGERPRINT); logowanie haslem jest wylaczone po stronie klienta.
+# Warunek galezi chroni produkcje przed uruchomieniem z dev.
+
 on:
   workflow_dispatch:
 
@@ -13,53 +18,113 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
       - name: Pobierz kod z GitHub
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Sprawdz pliki aplikacji
         run: |
+          set -euo pipefail
           test -f index.html
           test -d css
           test -d js
           test -d data
           echo "Pliki aplikacji sa gotowe"
 
+      - name: Przygotuj polaczenie SSH kluczem
+        env:
+          HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ secrets.SSH_PORT }}
+          USER: ${{ secrets.SSH_USER }}
+          EXPECTED: ${{ secrets.SSH_FINGERPRINT }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+
+          test -n "$SSH_KEY" || { echo "Brak sekretu SSH_PRIVATE_KEY"; exit 1; }
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/daroplan_key
+          ssh-keygen -y -P '' -f ~/.ssh/daroplan_key > /dev/null || {
+            echo "SSH_PRIVATE_KEY nie jest kluczem prywatnym bez hasla"
+            exit 1
+          }
+
+          ssh-keyscan -T 15 -p "$PORT" \
+            -t ed25519 "$HOST" \
+            > ~/.ssh/known_hosts 2>/dev/null
+
+          test -s ~/.ssh/known_hosts
+
+          ACTUAL=$(ssh-keygen -lf \
+            ~/.ssh/known_hosts -E sha256 \
+            | awk '{print $2}')
+
+          test "$ACTUAL" = "$EXPECTED" || {
+            echo "FINGERPRINT MISMATCH"
+            exit 1
+          }
+
+          cat > ~/.ssh/config <<EOF
+          Host dhosting
+            HostName $HOST
+            Port $PORT
+            User $USER
+            IdentityFile ~/.ssh/daroplan_key
+            IdentitiesOnly yes
+            PreferredAuthentications publickey
+            PasswordAuthentication no
+            KbdInteractiveAuthentication no
+            BatchMode yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            ConnectTimeout 20
+            ServerAliveInterval 15
+          EOF
+
+          echo "FINGERPRINT OK"
+
       - name: Sprawdz katalog docelowy
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            cd rowerowy.otwartyplan.org/public_html/mapa
-            test -f index.html
-            echo "Katalog docelowy istnieje"
+        run: |
+          set -euo pipefail
+
+          ssh dhosting 'sh -s' <<'EOF'
+          set -eu
+          cd rowerowy.otwartyplan.org/public_html/mapa
+          test -f index.html
+          echo "Katalog docelowy istnieje"
+          EOF
 
       - name: Przeslij pliki przez SCP
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          source: "index.html,css,js,data"
-          target: "rowerowy.otwartyplan.org/public_html/mapa/"
-          overwrite: true
-          rm: false
+        run: |
+          set -euo pipefail
+
+          scp -r \
+            index.html css js data \
+            dhosting:rowerowy.otwartyplan.org/public_html/mapa/
+
+          echo "PLIKI PRZESLANE"
 
       - name: Sprawdz publikacje
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            cd rowerowy.otwartyplan.org/public_html/mapa
-            test -s index.html
-            test -f js/app.js
-            echo "DEPLOY OK"
+        run: |
+          set -euo pipefail
+
+          ssh dhosting 'sh -s' <<'EOF'
+          set -eu
+          cd rowerowy.otwartyplan.org/public_html/mapa
+          test -s index.html
+          test -f js/app.js
+          echo "DEPLOY OK"
+          EOF
+
+      - name: Usun klucz z maszyny
+        if: always()
+        run: rm -f ~/.ssh/daroplan_key
